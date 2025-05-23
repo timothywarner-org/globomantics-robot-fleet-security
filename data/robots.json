@@ -1,0 +1,242 @@
+[
+  {
+    "serialNumber": "GM-W100-2024-001",
+    "model": "GM-W100",
+    "name": "Warehouse Bot Alpha",
+    "status": "active",
+    "location": {
+      "facility": "Seattle Distribution Center",
+      "zone": "Zone A",
+      "coordinates": {
+        "x": 125.5,
+        "y": 87.3,
+        "z": 0
+      }
+    },
+    "firmware": {
+      "version": "2.1.0",
+      "lastUpdate": "2024-01-15T08:00:00Z"
+    },
+    "performance": {
+      "uptime": 2184,
+      "tasksCompleted": 15842,
+      "efficiency": 94.7
+    },
+    "health": {
+      "battery": 87,
+      "temperature": 28.5,
+      "motorHealth": 96
+    },
+    "lastSeen": "2024-01-23T10:30:00Z"
+  },
+  {
+    "serialNumber": "GM-W200-2024-002",
+    "model": "GM-W200",
+    "name": "Warehouse Bot Beta",
+    "status": "idle",
+    "location": {
+      "facility": "Seattle Distribution Center",
+      "zone": "Zone B",
+      "coordinates": {
+        "x": 200.0,
+        "y": 150.0,
+        "z": 0
+      }
+    },
+    "firmware": {
+      "version": "2.0.5",
+      "lastUpdate": "2024-01-10T09:00:00Z"
+    },
+    "performance": {
+      "uptime": 1567,
+      "tasksCompleted": 12453,
+      "efficiency": 91.2
+    },
+    "health": {
+      "battery": 100,
+      "temperature": 25.0,
+      "motorHealth": 98
+    },
+    "lastSeen": "2024-01-23T10:29:00Z"
+  },
+  {
+    "serialNumber": "GM-F150-2023-045",
+    "model": "GM-F150",
+    "name": "Factory Bot Charlie",
+    "status": "maintenance",
+    "location": {
+      "facility": "Detroit Manufacturing Plant",
+      "zone": "Assembly Line 3",
+      "coordinates": {
+        "x": 45.7,
+        "y": 120.0,
+        "z": 0
+      }
+    },
+    "firmware": {
+      "version": "1.8.3",
+      "lastUpdate": "2023-12-20T14:00:00Z"
+    },
+    "performance": {
+      "uptime": 4532,
+      "tasksCompleted": 45123,
+      "efficiency": 88.5
+    },
+    "health": {
+      "battery": 45,
+      "temperature": 32.0,
+      "motorHealth": 72
+    },
+    "lastSeen": "2024-01-23T08:15:00Z"
+  },
+  {
+    "serialNumber": "GM-F300-2023-089",
+    "model": "GM-F300",
+    "name": "Factory Bot Delta",
+    "status": "active",
+    "location": {
+      "facility": "Detroit Manufacturing Plant",
+      "zone": "Assembly Line 1",
+      "coordinates": {
+        "x": 78.9,
+        "y": 45.2,
+        "z": 0
+      }
+    },
+    "firmware": {
+      "version": "1.9.1",
+      "lastUpdate": "2024-01-05T10:00:00Z"
+    },
+    "performance": {
+      "uptime": 3892,
+      "tasksCompleted": 38924,
+      "efficiency": 92.8
+    },
+    "health": {
+      "battery": 92,
+      "temperature": 29.0,
+      "motorHealth": 94
+    },
+    "lastSeen": "2024-01-23T10:31:00Z"
+  },
+  {
+    "serialNumber": "GM-X500-2024-001",
+    "model": "GM-X500",
+    "name": "Experimental Bot Echo",
+    "status": "active",
+    "location": {
+      "facility": "R&D Laboratory",
+      "zone": "Testing Area",
+      "coordinates": {
+        "x": 10.0,
+        "y": 10.0,
+        "z": 0
+      }
+    },
+    "firmware": {
+      "version": "3.0.0-beta",
+      "lastUpdate": "2024-01-20T16:00:00Z"
+    },
+    "performance": {
+      "uptime": 168,
+      "tasksCompleted": 2451,
+      "efficiency": 97.2
+    },
+    "health": {
+      "battery": 95,
+      "temperature": 26.0,
+      "motorHealth": 100
+    },
+    "lastSeen": "2024-01-23T10:32:00Z"
+  },
+  {
+    "serialNumber": "GM-W100-2023-178",
+    "model": "GM-W100",
+    "name": "Warehouse Bot Foxtrot",
+    "status": "error",
+    "location": {
+      "facility": "Chicago Fulfillment Center",
+      "zone": "Zone C",
+      "coordinates": {
+        "x": 300.5,
+        "y": 200.0,
+        "z": 0
+      }
+    },
+    "firmware": {
+      "version": "2.0.0",
+      "lastUpdate": "2023-11-15T12:00:00Z"
+    },
+    "performance": {
+      "uptime": 5678,
+      "tasksCompleted": 67892,
+      "efficiency": 85.3
+    },
+    "health": {
+      "battery": 15,
+      "temperature": 45.0,
+      "motorHealth": 65
+    },
+    "lastSeen": "2024-01-23T09:45:00Z"
+  },
+  {
+    "serialNumber": "GM-W200-2023-234",
+    "model": "GM-W200",
+    "name": "Warehouse Bot Golf",
+    "status": "offline",
+    "location": {
+      "facility": "Chicago Fulfillment Center",
+      "zone": "Zone A",
+      "coordinates": {
+        "x": 50.0,
+        "y": 75.0,
+        "z": 0
+      }
+    },
+    "firmware": {
+      "version": "1.9.8",
+      "lastUpdate": "2023-10-20T08:00:00Z"
+    },
+    "performance": {
+      "uptime": 7892,
+      "tasksCompleted": 89234,
+      "efficiency": 90.1
+    },
+    "health": {
+      "battery": 0,
+      "temperature": 22.0,
+      "motorHealth": 88
+    },
+    "lastSeen": "2024-01-22T18:30:00Z"
+  },
+  {
+    "serialNumber": "GM-F150-2023-112",
+    "model": "GM-F150",
+    "name": "Factory Bot Hotel",
+    "status": "active",
+    "location": {
+      "facility": "Austin Assembly Plant",
+      "zone": "Production Line 2",
+      "coordinates": {
+        "x": 156.7,
+        "y": 89.4,
+        "z": 0
+      }
+    },
+    "firmware": {
+      "version": "1.8.3",
+      "lastUpdate": "2023-12-20T14:00:00Z"
+    },
+    "performance": {
+      "uptime": 3245,
+      "tasksCompleted": 34567,
+      "efficiency": 93.5
+    },
+    "health": {
+      "battery": 78,
+      "temperature": 31.0,
+      "motorHealth": 91
+    },
+    "lastSeen": "2024-01-23T10:30:45Z"
+  }
+]

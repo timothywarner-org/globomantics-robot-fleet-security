@@ -1,0 +1,104 @@
+#!/bin/bash
+# 
+# Pre-commit hook for dependency scanning
+# This script scans dependencies for known vulnerabilities before allowing commits
+
+# Color codes for better visibility
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+echo -e "${BLUE}Running dependency vulnerability check...${NC}"
+
+# Function to check if a command exists
+command_exists() {
+  command -v "$1" >/dev/null 2>&1
+}
+
+# Check if npm is available
+if ! command_exists npm; then
+  echo -e "${RED}Error: npm is required but not installed.${NC}"
+  exit 1
+fi
+
+# Check if we're in a Node.js project with package.json
+if [ ! -f "package.json" ]; then
+  echo -e "${YELLOW}Warning: package.json not found. Skipping dependency check.${NC}"
+  exit 0
+fi
+
+# Use npm audit to check for vulnerabilities with JSON output
+audit_result=$(npm audit --json 2>/dev/null)
+if [ $? -ne 0 ]; then
+  echo -e "${YELLOW}Warning: npm audit failed to run.${NC}"
+  exit 0
+fi
+
+# Parse the JSON output to get counts of vulnerabilities by severity
+critical=$(echo "$audit_result" | grep -o '"critical":[0-9]*' | cut -d ":" -f2)
+high=$(echo "$audit_result" | grep -o '"high":[0-9]*' | cut -d ":" -f2)
+moderate=$(echo "$audit_result" | grep -o '"moderate":[0-9]*' | cut -d ":" -f2)
+low=$(echo "$audit_result" | grep -o '"low":[0-9]*' | cut -d ":" -f2)
+
+# Default to 0 if not found
+critical=${critical:-0}
+high=${high:-0}
+moderate=${moderate:-0}
+low=${low:-0}
+
+# Print summary
+echo -e "${BLUE}Dependency vulnerability summary:${NC}"
+echo -e "- Critical: ${critical:-0}"
+echo -e "- High: ${high:-0}"
+echo -e "- Moderate: ${moderate:-0}"
+echo -e "- Low: ${low:-0}"
+
+# Determine if we should block the commit
+# By default, block on critical and high vulnerabilities
+block_on_critical=${BLOCK_ON_CRITICAL:-1}
+block_on_high=${BLOCK_ON_HIGH:-1}
+block_on_moderate=${BLOCK_ON_MODERATE:-0}
+block_on_low=${BLOCK_ON_LOW:-0}
+
+should_block=0
+block_reason=""
+
+if [ "$block_on_critical" = "1" ] && [ "$critical" -gt 0 ]; then
+  should_block=1
+  block_reason="${block_reason}Critical vulnerabilities found. "
+fi
+
+if [ "$block_on_high" = "1" ] && [ "$high" -gt 0 ]; then
+  should_block=1
+  block_reason="${block_reason}High vulnerabilities found. "
+fi
+
+if [ "$block_on_moderate" = "1" ] && [ "$moderate" -gt 0 ]; then
+  should_block=1
+  block_reason="${block_reason}Moderate vulnerabilities found. "
+fi
+
+if [ "$block_on_low" = "1" ] && [ "$low" -gt 0 ]; then
+  should_block=1
+  block_reason="${block_reason}Low vulnerabilities found. "
+fi
+
+# Allow commit to be forced through with an environment variable
+if [ "$FORCE_COMMIT" = "1" ]; then
+  should_block=0
+  echo -e "${YELLOW}Warning: Forcing commit despite vulnerabilities.${NC}"
+fi
+
+# Block commit if vulnerabilities found
+if [ "$should_block" = "1" ]; then
+  echo -e "${RED}ERROR: ${block_reason}${NC}"
+  echo -e "${YELLOW}Run 'npm audit' to see detailed information about the vulnerabilities.${NC}"
+  echo -e "${YELLOW}You can fix them with 'npm audit fix' or bypass this check with:${NC}"
+  echo -e "${YELLOW}  FORCE_COMMIT=1 git commit -m \"your message\"${NC}"
+  exit 1
+fi
+
+echo -e "${GREEN}Dependency check passed!${NC}"
+exit 0 

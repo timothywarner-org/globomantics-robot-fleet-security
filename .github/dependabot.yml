@@ -1,0 +1,84 @@
+# Dependabot configuration file
+# This file configures automated dependency updates for various package ecosystems
+# Documentation: https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+
+version: 2
+updates:
+  # Enable version updates for npm
+  - package-ecosystem: "npm"
+    # Look for `package.json` and `package-lock.json` files in the root directory
+    directory: "/"
+    # Check for updates daily (you can also use weekly or monthly)
+    schedule:
+      interval: "daily"
+      time: "09:00"
+      timezone: "America/New_York"
+    # Raise pull requests for version updates
+    # to npm dependencies
+    open-pull-requests-limit: 10
+    # Specify labels for pull requests
+    labels:
+      - "dependencies"
+      - "npm"
+      - "automated"
+    # Add reviewers
+    reviewers:
+      - "octocat"
+    # Add assignees
+    assignees:
+      - "octocat"
+    # Specify which dependencies to update
+    allow:
+      # Only allow updates for production dependencies
+      - dependency-type: "production"
+    # Ignore specific dependencies or versions
+    ignore:
+      # Ignore updates to packages that require manual intervention
+      - dependency-name: "bcrypt"
+        versions: [">=4.0.0"]
+    # Group updates together to reduce noise
+    groups:
+      # Group all development dependencies together
+      dev-dependencies:
+        patterns:
+          - "*"
+        dependency-type: "development"
+      # Group all patch updates together
+      patch-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "patch"
+    # Commit message prefix
+    commit-message:
+      prefix: "chore"
+      prefix-development: "chore(dev)"
+      include: "scope"
+
+  # Enable version updates for GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "America/New_York"
+    labels:
+      - "dependencies"
+      - "github-actions"
+      - "automated"
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+
+  # Enable security updates only for Docker
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    # Only open security update PRs
+    open-pull-requests-limit: 0
+    labels:
+      - "dependencies"
+      - "docker"
+      - "security"

@@ -1,0 +1,211 @@
+name: Enhanced CodeQL Analysis
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master, develop ]
+  schedule:
+    - cron: '0 1 * * 2' # Every Tuesday at 1 AM UTC
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+  security-events: write
+  pull-requests: write
+
+jobs:
+  analyze:
+    name: Enhanced Code Scanning
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [ 'javascript', 'python' ]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # We must fetch at least the immediate parents so that if this is
+          # a pull request then we can check out the head of the pull request.
+          fetch-depth: 2
+
+      # If this run was triggered by a pull request event, then checkout
+      # the head of the pull request instead of the merge commit.
+      - run: git checkout HEAD^2
+        if: ${{ github.event_name == 'pull_request' }}
+
+      # Install additional tools for enhanced analysis
+      - name: Setup Node.js
+        if: ${{ matrix.language == 'javascript' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Setup Python
+        if: ${{ matrix.language == 'python' }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      # Generate dependency graphs for correlation with CodeQL findings
+      - name: Generate Node.js dependency graph
+        if: ${{ matrix.language == 'javascript' }}
+        run: |
+          npm install --package-lock-only
+          npm ls --json > js-dependency-graph.json
+
+      # Run npm audit to get vulnerability data
+      - name: Run npm audit
+        if: ${{ matrix.language == 'javascript' }}
+        continue-on-error: true
+        run: |
+          npm audit --json > npm-audit-results.json
+
+      - name: Generate Python dependency graph
+        if: ${{ matrix.language == 'python' }}
+        run: |
+          pip install pipdeptree
+          pipdeptree --json > py-dependency-graph.json
+
+      # Initialize the CodeQL tools for scanning
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          queries: security-extended,security-and-quality
+          # Add custom dependency-focused queries
+          config-file: ./.github/codeql/codeql-config.yml
+
+      # Build JavaScript/TypeScript projects
+      - name: Build JavaScript/TypeScript
+        if: ${{ matrix.language == 'javascript' }}
+        run: |
+          if [ -f package.json ]; then
+            npm ci
+            npm run build --if-present
+          fi
+
+      # Setup Python environment
+      - name: Install Python dependencies
+        if: ${{ matrix.language == 'python' }}
+        run: |
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          elif [ -f Pipfile ]; then
+            pip install pipenv && pipenv install --dev --system
+          elif [ -f pyproject.toml ]; then
+            pip install poetry && poetry install --no-interaction
+          fi
+
+      # Perform CodeQL Analysis
+      - name: Perform CodeQL Analysis
+        id: codeql-analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{matrix.language}}"
+
+      # Run our integration script to enhance the results
+      - name: Enhance CodeQL Results with Dependency Context
+        env:
+          CODEQL_RESULTS_DIR: ${{ github.workspace }}/results
+          NPM_AUDIT_FILE: npm-audit-results.json
+          OUTPUT_DIR: enhanced-results
+        run: |
+          # Make the integration script executable
+          chmod +x .github/scripts/integrate-codeql-dependency-results.js
+          
+          # Run the integration script
+          .github/scripts/integrate-codeql-dependency-results.js
+          
+          # Generate a summary file with key findings
+          if [ -f enhanced-results/dependency-vulnerability-report.md ]; then
+            echo "## CodeQL Dependency Vulnerability Analysis" > enhanced-results/summary.md
+            echo "" >> enhanced-results/summary.md
+            echo "### Key Findings" >> enhanced-results/summary.md
+            echo "" >> enhanced-results/summary.md
+            
+            # Extract and include key sections from the report
+            grep -A 20 "Potentially Vulnerable Dependency Usage" enhanced-results/dependency-vulnerability-report.md >> enhanced-results/summary.md || true
+            
+            # Add explanation about the analysis
+            cat >> enhanced-results/summary.md << EOF
+            
+            ## How This Analysis Works
+            
+            This enhanced analysis correlates static code analysis findings from CodeQL with dependency vulnerability data to identify:
+            
+            1. **Insecure dependency usage patterns** - When secure dependencies are used in insecure ways
+            2. **Vulnerability exploit paths** - Where code might trigger known vulnerabilities in dependencies
+            3. **Input validation issues** - Where user inputs reach vulnerable dependencies without proper validation
+            4. **Dependency interaction issues** - When multiple dependencies interact in potentially unsafe ways
+            
+            The combination of SAST (CodeQL) and dependency scanning (Dependabot) provides a more comprehensive security view than either approach alone.
+            EOF
+          else
+            echo "No dependency vulnerability report found" > enhanced-results/summary.md
+          fi
+
+      # Create or update PR comment with enhanced results
+      - name: Comment on PR
+        if: github.event_name == 'pull_request' && matrix.language == 'javascript'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            
+            // Check if summary file exists
+            if (!fs.existsSync('enhanced-results/summary.md')) {
+              console.log('No summary file found, skipping PR comment');
+              return;
+            }
+            
+            const summaryContent = fs.readFileSync('enhanced-results/summary.md', 'utf8');
+            
+            // Find existing comment
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            
+            const botComment = comments.find(comment => {
+              return comment.user.type === 'Bot' && 
+                     comment.body.includes('CodeQL Dependency Vulnerability Analysis');
+            });
+            
+            // Update or create comment
+            const commentBody = `<!-- CODEQL-ENHANCED-ANALYSIS -->\n${summaryContent}`;
+            
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: commentBody
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: commentBody
+              });
+            }
+
+      # Upload enhanced results to GitHub Security tab
+      - name: Upload SARIF results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: enhanced-results/${{ matrix.language }}.sarif
+          category: enhanced-${{ matrix.language }}
+
+      # Upload results as artifact
+      - name: Upload Enhanced Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: enhanced-codeql-results-${{ matrix.language }}
+          path: enhanced-results/ 

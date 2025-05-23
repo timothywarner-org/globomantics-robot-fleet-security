@@ -1,0 +1,90 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    container_name: globomantics-robot-fleet
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - MONGODB_URI=mongodb://mongo:27017/globomantics-robots
+      - REDIS_URL=redis://redis:6379
+      - MQTT_BROKER_URL=mqtt://mqtt:1883
+      - JWT_SECRET=globomantics-robot-fleet-secret-2024
+    depends_on:
+      - mongo
+      - redis
+      - mqtt
+    volumes:
+      - ./src:/app/src
+      - ./public:/app/public
+      - ./data:/app/data
+    networks:
+      - globomantics-network
+
+  mongo:
+    image: mongo:6.0
+    container_name: globomantics-mongo
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=globomantics2024
+      - MONGO_INITDB_DATABASE=globomantics-robots
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - globomantics-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: globomantics-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    networks:
+      - globomantics-network
+
+  mqtt:
+    image: eclipse-mosquitto:2
+    container_name: globomantics-mqtt
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
+      - mqtt-data:/mosquitto/data
+      - mqtt-logs:/mosquitto/log
+    networks:
+      - globomantics-network
+
+  # Optional: MongoDB Express for database management
+  mongo-express:
+    image: mongo-express:1.0-alpha
+    container_name: globomantics-mongo-express
+    ports:
+      - "8081:8081"
+    environment:
+      - ME_CONFIG_MONGODB_ADMINUSERNAME=admin
+      - ME_CONFIG_MONGODB_ADMINPASSWORD=globomantics2024
+      - ME_CONFIG_MONGODB_URL=mongodb://admin:globomantics2024@mongo:27017/
+      - ME_CONFIG_BASICAUTH_USERNAME=admin
+      - ME_CONFIG_BASICAUTH_PASSWORD=admin123
+    depends_on:
+      - mongo
+    networks:
+      - globomantics-network
+
+volumes:
+  mongo-data:
+  redis-data:
+  mqtt-data:
+  mqtt-logs:
+
+networks:
+  globomantics-network:
+    driver: bridge

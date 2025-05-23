@@ -1,0 +1,77 @@
+# CodeQL Analysis Workflow
+# This workflow uses GitHub's CodeQL to perform semantic code analysis
+# It helps identify security vulnerabilities and coding errors
+
+name: "CodeQL Analysis"
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master, develop ]
+  schedule:
+    # Run CodeQL analysis daily at 3 AM UTC
+    - cron: '0 3 * * *'
+
+permissions:
+  actions: read
+  contents: read
+  security-events: write
+
+jobs:
+  analyze:
+    name: Analyze Code
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [ 'javascript' ]
+        # CodeQL supports: 'cpp', 'csharp', 'go', 'java', 'javascript', 'python', 'ruby', 'swift'
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    # Initializes the CodeQL tools for scanning
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v3
+      with:
+        languages: ${{ matrix.language }}
+        # Override the default queries with a custom query suite
+        queries: security-and-quality
+        # Enable query packs for additional security checks
+        packs: |
+          codeql/javascript-security-extended
+          codeql/javascript-security-and-quality
+
+    # Autobuild attempts to build any compiled languages (C/C++, C#, or Java)
+    # If this step fails, then remove it and run the build manually
+    - name: Autobuild
+      uses: github/codeql-action/autobuild@v3
+
+    # Perform CodeQL Analysis
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v3
+      with:
+        category: "/language:${{matrix.language}}"
+        # Upload SARIF results to GitHub
+        upload: true
+        # Also output results to a file
+        output: sarif-results
+
+    # Upload SARIF file as an artifact
+    - name: Upload SARIF results
+      uses: actions/upload-artifact@v4
+      with:
+        name: codeql-results-${{ matrix.language }}
+        path: sarif-results/
+        retention-days: 30
+
+    # Create a summary of findings
+    - name: Create findings summary
+      if: always()
+      run: |
+        echo "## CodeQL Analysis Complete" >> $GITHUB_STEP_SUMMARY
+        echo "Language: ${{ matrix.language }}" >> $GITHUB_STEP_SUMMARY
+        echo "Results will be available in the Security tab" >> $GITHUB_STEP_SUMMARY

@@ -1,0 +1,92 @@
+# CODEOWNERS file
+# This file defines who is responsible for code in this repository
+# These owners will be automatically requested for review when someone opens a pull request
+# Documentation: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owners for everything in the repo
+# Unless a later match takes precedence, these owners will be requested for review
+* @octocat @security-team
+
+# Security-related files require security team review
+/SECURITY.md @security-team @security-lead
+/.github/workflows/security-*.yml @security-team @devops-team
+/.github/workflows/codeql-*.yml @security-team @devops-team
+/.github/workflows/secret-*.yml @security-team @devops-team
+
+# Dependabot configuration requires both security and DevOps review
+/.github/dependabot.yml @security-team @devops-team
+
+# JavaScript and TypeScript files
+*.js @frontend-team @backend-team
+*.ts @frontend-team @backend-team
+*.jsx @frontend-team
+*.tsx @frontend-team
+
+# Backend specific files
+/src/api/ @backend-team
+/src/controllers/ @backend-team
+/src/models/ @backend-team
+/src/middleware/ @backend-team @security-team
+/src/auth/ @backend-team @security-team
+
+# Frontend specific files
+/src/components/ @frontend-team
+/src/views/ @frontend-team
+/public/ @frontend-team @design-team
+
+# Configuration files
+/config/ @devops-team @backend-team
+*.config.js @devops-team
+.env.example @devops-team @security-team
+
+# Database related files
+/migrations/ @backend-team @database-team
+/seeds/ @backend-team @database-team
+*.sql @database-team
+
+# Documentation
+/docs/ @documentation-team
+*.md @documentation-team
+README.md @documentation-team @product-team
+
+# Test files
+/tests/ @qa-team
+*.test.js @qa-team @backend-team
+*.spec.js @qa-team @backend-team
+/e2e/ @qa-team
+
+# CI/CD and GitHub Actions
+/.github/workflows/ @devops-team
+/.github/actions/ @devops-team
+/scripts/ @devops-team
+
+# Package files - require careful review
+package.json @devops-team @security-team @tech-lead
+package-lock.json @devops-team @security-team @tech-lead
+yarn.lock @devops-team @security-team @tech-lead
+
+# Docker files
+Dockerfile @devops-team @security-team
+docker-compose*.yml @devops-team
+.dockerignore @devops-team
+
+# Build and deployment files
+/build/ @devops-team
+/dist/ @devops-team
+webpack.*.js @devops-team @frontend-team
+
+# Sensitive files - require multiple reviews
+.gitignore @tech-lead @security-team
+.npmrc @devops-team @security-team
+.env @security-team
+*.key @security-team
+*.pem @security-team
+*.cert @security-team
+
+# Legal and compliance
+LICENSE @legal-team @product-team
+/compliance/ @legal-team @security-team
+
+# Vendor and third-party code
+/vendor/ @tech-lead @security-team
+/node_modules/ @devops-team

@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="800" height="550" viewBox="0 0 800 550" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="800" height="550" fill="#f6f8fa" rx="10" ry="10"/>
+  
+  <!-- Title -->
+  <text x="400" y="40" font-family="Arial, sans-serif" font-size="24" font-weight="bold" text-anchor="middle" fill="#24292e">Dependabot Alerts Enhancement Workflow</text>
+  
+  <!-- Step 1: Alert Sources -->
+  <rect x="50" y="80" width="180" height="40" rx="5" ry="5" fill="#24292e" stroke="none" opacity="0.1"/>
+  <text x="140" y="105" font-family="Arial, sans-serif" font-size="16" font-weight="bold" text-anchor="middle" fill="#24292e">Alert Sources</text>
+  
+  <!-- Source 1: Dependabot Alert -->
+  <rect x="50" y="130" width="150" height="80" rx="10" ry="10" fill="#ffefc6" stroke="#e8b64c" stroke-width="2"/>
+  <text x="125" y="160" font-family="Arial, sans-serif" font-size="14" font-weight="bold" text-anchor="middle">Dependabot</text>
+  <text x="125" y="180" font-family="Arial, sans-serif" font-size="12" text-anchor="middle">Finds vulnerability</text>
+  <text x="125" y="200" font-family="Arial, sans-serif" font-size="12" text-anchor="middle">Creates alert</text>
+  
+  <!-- Arrow 1 -->
+  <line x1="200" y1="170" x2="265" y2="170" stroke="#24292e" stroke-width="2"/>
+  <polygon points="265,165 275,170 265,175" fill="#24292e"/>
+  
+  <!-- Step 2: Trigger Methods -->
+  <rect x="275" y="80" width="180" height="40" rx="5" ry="5" fill="#24292e" stroke="none" opacity="0.1"/>
+  <text x="365" y="105" font-family="Arial, sans-serif" font-size="16" font-weight="bold" text-anchor="middle" fill="#24292e">Trigger Methods</text>
+  
+  <!-- Trigger 1: Webhook -->
+  <rect x="275" y="130" width="150" height="60" rx="10" ry="10" fill="#d1f7c4" stroke="#5ca53f" stroke-width="2"/>
+  <text x="350" y="155" font-family="Arial, sans-serif" font-size="14" font-weight="bold" text-anchor="middle">Webhook</text>
+  <text x="350" y="175" font-family="Arial, sans-serif" font-size="12" text-anchor="middle">repository_dispatch</text>
+  
+  <!-- Trigger 2: Schedule -->
+  <rect x="275" y="200" width="150" height="60" rx="10" ry="10" fill="#ffdfb6" stroke="#e36209" stroke-width="2"/>
+  <text x="350" y="225" font-family="Arial, sans-serif" font-size="14" font-weight="bold" text-anchor="middle">Schedule</text>
+  <text x="350" y="245" font-family="Arial, sans-serif" font-size="12" text-anchor="middle">daily scan</text>
+  
+  <!-- Trigger 3: Manual -->
+  <rect x="275" y="270" width="150" height="60" rx="10" ry="10" fill="#d1bef4" stroke="#8250df" stroke-width="2"/>
+  <text x="350" y="295" font-family="Arial, sans-serif" font-size="14" font-weight="bold" text-anchor="middle">Manual</text>
+  <text x="350" y="315" font-family="Arial, sans-serif" font-size="12" text-anchor="middle">workflow_dispatch</text>
+  
+  <!-- Arrows to Workflow -->
+  <line x1="425" y1="160" x2="490" y2="200" stroke="#24292e" stroke-width="2"/>
+  <line x1="425" y1="230" x2="490" y2="230" stroke="#24292e" stroke-width="2"/>
+  <line x1="425" y1="300" x2="490" y2="260" stroke="#24292e" stroke-width="2"/>
+  <polygon points="490,195 500,200 490,205" fill="#24292e"/>
+  <polygon points="490,225 500,230 490,235" fill="#24292e"/>
+  <polygon points="490,255 500,260 490,265" fill="#24292e"/>
+  
+  <!-- Step 3: Workflow -->
+  <rect x="500" y="80" width="180" height="40" rx="5" ry="5" fill="#24292e" stroke="none" opacity="0.1"/>
+  <text x="590" y="105" font-family="Arial, sans-serif" font-size="16" font-weight="bold" text-anchor="middle" fill="#24292e">Processing</text>
+  
+  <rect x="500" y="130" width="150" height="160" rx="10" ry="10" fill="#c5e4fd" stroke="#4895d9" stroke-width="2"/>
+  <text x="575" y="155" font-family="Arial, sans-serif" font-size="14" font-weight="bold" text-anchor="middle">GitHub Actions</text>
+  <text x="575" y="180" font-family="Arial, sans-serif" font-size="12" text-anchor="middle">1. Fetch alert details</text>
+  <text x="575" y="200" font-family="Arial, sans-serif" font-size="12" text-anchor="middle">2. Create labels</text>
+  <text x="575" y="220" font-family="Arial, sans-serif" font-size="12" text-anchor="middle">3. Generate issue</text>
+  <text x="575" y="240" font-family="Arial, sans-serif" font-size="12" text-anchor="middle">4. Assign to team</text>
+  <text x="575" y="260" font-family="Arial, sans-serif" font-size="12" text-anchor="middle">5. Track status</text>
+  
+  <!-- Arrow to Results -->
+  <line x1="575" y1="290" x2="575" y2="330" stroke="#24292e" stroke-width="2"/>
+  <polygon points="570,330 575,340 580,330" fill="#24292e"/>
+  
+  <!-- Step 4: Results -->
+  <rect x="275" y="350" width="600" height="40" rx="5" ry="5" fill="#24292e" stroke="none" opacity="0.1"/>
+  <text x="575" y="375" font-family="Arial, sans-serif" font-size="16" font-weight="bold" text-anchor="middle" fill="#24292e">Enhanced Alert Management</text>
+  
+  <!-- Results box with 3 sections -->
+  <rect x="275" y="400" width="600" height="120" rx="10" ry="10" fill="#ffffff" stroke="#d0d7de" stroke-width="2"/>
+  
+  <!-- Section dividers -->
+  <line x1="475" y1="400" x2="475" y2="520" stroke="#d0d7de" stroke-width="2"/>
+  <line x1="675" y1="400" x2="675" y2="520" stroke="#d0d7de" stroke-width="2"/>
+  
+  <!-- Section 1: Labels -->
+  <text x="375" y="420" font-family="Arial, sans-serif" font-size="14" font-weight="bold" text-anchor="middle" fill="#24292e">Labels</text>
+  
+  <!-- Label pills -->
+  <rect x="305" y="440" width="90" height="20" rx="10" ry="10" fill="#b60205" opacity="0.8"/>
+  <text x="350" y="454" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="white">severity:critical</text>
+  
+  <rect x="305" y="470" width="90" height="20" rx="10" ry="10" fill="#c5def5" opacity="0.8"/>
+  <text x="350" y="484" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="#24292e">ecosystem:npm</text>
+  
+  <rect x="305" y="500" width="120" height="20" rx="10" ry="10" fill="#fbca04" opacity="0.8"/>
+  <text x="365" y="514" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="#24292e">dependabot-alert:123</text>
+  
+  <!-- Section 2: Issue -->
+  <text x="575" y="420" font-family="Arial, sans-serif" font-size="14" font-weight="bold" text-anchor="middle" fill="#24292e">Tracking Issue</text>
+  
+  <rect x="495" y="440" width="160" height="70" rx="5" ry="5" fill="#f6f8fa" stroke="#d0d7de" stroke-width="1"/>
+  <text x="575" y="460" font-family="Arial, sans-serif" font-size="12" font-weight="bold" text-anchor="middle">Security Alert: critical</text>
+  <text x="575" y="480" font-family="Arial, sans-serif" font-size="12" text-anchor="middle">Package details</text>
+  <text x="575" y="500" font-family="Arial, sans-serif" font-size="12" text-anchor="middle">Action items</text>
+  
+  <!-- Section 3: Assignment -->
+  <text x="775" y="420" font-family="Arial, sans-serif" font-size="14" font-weight="bold" text-anchor="middle" fill="#24292e">Team Assignment</text>
+  
+  <!-- Team avatar circle -->
+  <circle cx="775" cy="480" r="30" fill="#ddf4ff" stroke="#54aeff" stroke-width="2"/>
+  <text x="775" y="485" font-family="Arial, sans-serif" font-size="14" font-weight="bold" text-anchor="middle">JS</text>
+  
+  <text x="775" y="520" font-family="Arial, sans-serif" font-size="12" text-anchor="middle">@javascript-team</text>
+</svg> 

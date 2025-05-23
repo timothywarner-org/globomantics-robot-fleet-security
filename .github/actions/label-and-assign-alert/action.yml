@@ -1,0 +1,125 @@
+name: 'Label and Assign Dependabot Alert'
+description: 'Creates labels, tracking issues, and team assignments for Dependabot alerts'
+inputs:
+  alert_number:
+    description: 'The Dependabot alert number'
+    required: true
+  repo:
+    description: 'The repository in owner/name format'
+    required: true
+  token:
+    description: 'GitHub token with permissions to create labels and issues'
+    required: true
+  severity:
+    description: 'The severity of the alert'
+    required: true
+  package:
+    description: 'The affected package name'
+    required: true
+  ecosystem:
+    description: 'The ecosystem of the affected package'
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Label and assign alert
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        ALERT_NUMBER: ${{ inputs.alert_number }}
+        REPO: ${{ inputs.repo }}
+        SEVERITY: ${{ inputs.severity }}
+        PACKAGE: ${{ inputs.package }}
+        ECOSYSTEM: ${{ inputs.ecosystem }}
+      run: |
+        # Set the alert state to 'open' to ensure it's being tracked
+        gh api --method PATCH -H "Accept: application/vnd.github+json" \
+          /repos/$REPO/dependabot/alerts/$ALERT_NUMBER \
+          -f state="open"
+        
+        # Determine team to assign based on ecosystem
+        if [[ "$ECOSYSTEM" == "npm" || "$ECOSYSTEM" == "yarn" ]]; then
+          TEAM="javascript-team"
+        elif [[ "$ECOSYSTEM" == "pip" ]]; then
+          TEAM="python-team"
+        elif [[ "$ECOSYSTEM" == "docker" ]]; then
+          TEAM="devops-team"
+        elif [[ "$ECOSYSTEM" == "github-actions" ]]; then
+          TEAM="cicd-team"
+        else
+          TEAM="security-team"
+        fi
+        
+        # Create labels if they don't exist
+        SEVERITY_LABEL="severity:$SEVERITY"
+        ECOSYSTEM_LABEL="ecosystem:$ECOSYSTEM"
+        
+        # First check if labels exist, create if they don't
+        if ! gh api -H "Accept: application/vnd.github+json" /repos/$REPO/labels | jq -e ".[] | select(.name == \"$SEVERITY_LABEL\")" > /dev/null; then
+          if [[ "$SEVERITY" == "critical" ]]; then
+            COLOR="b60205"
+          elif [[ "$SEVERITY" == "high" ]]; then
+            COLOR="d93f0b"
+          elif [[ "$SEVERITY" == "medium" ]]; then
+            COLOR="fbca04"
+          else
+            COLOR="0e8a16"
+          fi
+          gh api --method POST -H "Accept: application/vnd.github+json" \
+            /repos/$REPO/labels \
+            -f name="$SEVERITY_LABEL" \
+            -f color="$COLOR" \
+            -f description="$SEVERITY severity security alert"
+        fi
+        
+        if ! gh api -H "Accept: application/vnd.github+json" /repos/$REPO/labels | jq -e ".[] | select(.name == \"$ECOSYSTEM_LABEL\")" > /dev/null; then
+          gh api --method POST -H "Accept: application/vnd.github+json" \
+            /repos/$REPO/labels \
+            -f name="$ECOSYSTEM_LABEL" \
+            -f color="c5def5" \
+            -f description="$ECOSYSTEM ecosystem package"
+        fi
+        
+        # Check if issue already exists
+        EXISTING_ISSUE=$(gh issue list --label "dependabot-alert:$ALERT_NUMBER" --json number -q '.[0].number')
+        
+        if [ -z "$EXISTING_ISSUE" ]; then
+          # Create an issue for tracking the Dependabot alert
+          ISSUE_TITLE="Security Alert: $SEVERITY severity in $PACKAGE ($ECOSYSTEM)"
+          ISSUE_BODY="## Dependabot Security Alert\n\n"
+          ISSUE_BODY+="* **Package**: $PACKAGE\n"
+          ISSUE_BODY+="* **Ecosystem**: $ECOSYSTEM\n"
+          ISSUE_BODY+="* **Severity**: $SEVERITY\n\n"
+          ISSUE_BODY+="This issue was automatically created from a Dependabot alert.\n"
+          ISSUE_BODY+="Review the alert in the [Security tab](https://github.com/$REPO/security/dependabot/$ALERT_NUMBER)\n\n"
+          ISSUE_BODY+="### Recommended Actions:\n\n"
+          
+          if [[ "$SEVERITY" == "critical" || "$SEVERITY" == "high" ]]; then
+            ISSUE_BODY+="- [ ] Update the dependency immediately\n"
+            ISSUE_BODY+="- [ ] Check for any exploits in your codebase\n"
+            ISSUE_BODY+="- [ ] Schedule a security review\n"
+          else
+            ISSUE_BODY+="- [ ] Plan to update this dependency in the next release cycle\n"
+            ISSUE_BODY+="- [ ] Review if this dependency is still necessary\n"
+          fi
+          
+          # Create the issue with appropriate labels and assignment
+          gh issue create --title "$ISSUE_TITLE" \
+            --body "$ISSUE_BODY" \
+            --assignee "@$TEAM" \
+            --label "$SEVERITY_LABEL" \
+            --label "$ECOSYSTEM_LABEL" \
+            --label "security" \
+            --label "dependabot" \
+            --label "dependabot-alert:$ALERT_NUMBER"
+          
+          echo "Created issue for Dependabot alert #$ALERT_NUMBER (Severity: $SEVERITY, Package: $PACKAGE)"
+          
+          # If critical or high, notify in a GitHub discussion or specific channel
+          if [[ "$SEVERITY" == "critical" || "$SEVERITY" == "high" ]]; then
+            echo "::warning::Critical or high severity Dependabot alert detected for $PACKAGE!"
+          fi
+        else
+          echo "Issue #$EXISTING_ISSUE already exists for alert #$ALERT_NUMBER"
+        fi 

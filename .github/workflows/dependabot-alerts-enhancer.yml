@@ -1,0 +1,404 @@
+# Dependabot Alerts Enhancer Workflow
+# This workflow enhances Dependabot alerts by adding custom labels and assignments
+# based on alert type, severity, and affected dependencies
+
+name: Dependabot Alerts Enhancer
+
+on:
+  # Since GitHub doesn't have a direct dependabot_alert webhook event,
+  # we use repository_dispatch as a proxy event
+  repository_dispatch:
+    types: [dependabot-alert]
+  
+  # Alternative: scheduled check for new alerts
+  schedule:
+    # Run daily at 8 AM UTC
+    - cron: '0 8 * * *'
+  
+  # Optional: Allow manual trigger for testing
+  workflow_dispatch:
+    inputs:
+      alert_number:
+        description: 'Dependabot alert number to process'
+        required: true
+        type: number
+
+# Permissions required for handling alerts and issues
+permissions:
+  # Required for querying alerts
+  security-events: read
+  # Required for updating alerts
+  repository-projects: write
+  # Required for issue creation
+  issues: write
+  # Required for PR creation (if automated fixes are desired)
+  pull-requests: write
+  # Required for reading repo contents
+  contents: read
+
+jobs:
+  # Job for processing alerts triggered by repository_dispatch
+  process-dispatched-alert:
+    name: Process Dispatched Alert
+    runs-on: ubuntu-latest
+    if: github.event_name == 'repository_dispatch'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Get GitHub App token
+        id: get-token
+        uses: getsentry/action-github-app-token@v2
+        with:
+          app_id: ${{ secrets.AUTOMATION_APP_ID }}
+          private_key: ${{ secrets.AUTOMATION_PRIVATE_KEY }}
+      
+      - name: Process alert from dispatch
+        id: process-dispatch
+        env:
+          GH_TOKEN: ${{ steps.get-token.outputs.token }}
+          ALERT_NUMBER: ${{ github.event.client_payload.alert_number }}
+          REPO: ${{ github.repository }}
+        run: |
+          # Get alert details
+          ALERT_DATA=$(gh api -H "Accept: application/vnd.github+json" \
+            /repos/$REPO/dependabot/alerts/$ALERT_NUMBER)
+          
+          # Extract key information
+          SEVERITY=$(echo "$ALERT_DATA" | jq -r '.severity')
+          PACKAGE=$(echo "$ALERT_DATA" | jq -r '.dependency.package.name')
+          ECOSYSTEM=$(echo "$ALERT_DATA" | jq -r '.dependency.package.ecosystem')
+          
+          # Store data for later steps
+          echo "severity=$SEVERITY" >> $GITHUB_OUTPUT
+          echo "package=$PACKAGE" >> $GITHUB_OUTPUT
+          echo "ecosystem=$ECOSYSTEM" >> $GITHUB_OUTPUT
+          echo "alert_number=$ALERT_NUMBER" >> $GITHUB_OUTPUT
+      
+      - name: Apply labels and assignment
+        env:
+          GH_TOKEN: ${{ steps.get-token.outputs.token }}
+          ALERT_NUMBER: ${{ steps.process-dispatch.outputs.alert_number }}
+          REPO: ${{ github.repository }}
+          SEVERITY: ${{ steps.process-dispatch.outputs.severity }}
+          PACKAGE: ${{ steps.process-dispatch.outputs.package }}
+          ECOSYSTEM: ${{ steps.process-dispatch.outputs.ecosystem }}
+        uses: ./.github/actions/label-and-assign-alert
+      
+      - name: Create summary
+        if: always()
+        run: |
+          echo "## Dependabot Alert Enhancement Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Alert #**: ${{ steps.process-dispatch.outputs.alert_number }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Severity**: ${{ steps.process-dispatch.outputs.severity }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Package**: ${{ steps.process-dispatch.outputs.package }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Ecosystem**: ${{ steps.process-dispatch.outputs.ecosystem }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "An issue has been created with appropriate labels and team assignment." >> $GITHUB_STEP_SUMMARY
+
+  # Job for scheduled checking of alerts
+  scan-recent-alerts:
+    name: Scan Recent Alerts
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Get GitHub App token
+        id: get-token
+        uses: getsentry/action-github-app-token@v2
+        with:
+          app_id: ${{ secrets.AUTOMATION_APP_ID }}
+          private_key: ${{ secrets.AUTOMATION_PRIVATE_KEY }}
+      
+      - name: Fetch recent alerts
+        env:
+          GH_TOKEN: ${{ steps.get-token.outputs.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          # Get alerts created in the last 24 hours
+          ALERTS=$(gh api -H "Accept: application/vnd.github+json" \
+            /repos/$REPO/dependabot/alerts \
+            -F state=open \
+            -F severity=critical,high,medium,low \
+            -F created_since="$(date -d '24 hours ago' -u +%Y-%m-%dT%H:%M:%SZ)")
+          
+          # Extract alert numbers
+          ALERT_NUMBERS=$(echo "$ALERTS" | jq -r '.[].number')
+          
+          # Save to file for processing
+          echo "$ALERT_NUMBERS" > recent_alerts.txt
+          
+          # Count alerts
+          COUNT=$(echo "$ALERT_NUMBERS" | wc -l)
+          echo "Found $COUNT recent alerts"
+          
+          echo "alert_count=$COUNT" >> $GITHUB_ENV
+      
+      - name: Process recent alerts
+        if: env.alert_count != '0'
+        env:
+          GH_TOKEN: ${{ steps.get-token.outputs.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          # For each alert, process it
+          while read -r ALERT_NUMBER; do
+            # Skip empty lines
+            [ -z "$ALERT_NUMBER" ] && continue
+            
+            echo "Processing alert #$ALERT_NUMBER"
+            
+            # Get alert details
+            ALERT_DATA=$(gh api -H "Accept: application/vnd.github+json" \
+              /repos/$REPO/dependabot/alerts/$ALERT_NUMBER)
+            
+            # Extract key information
+            SEVERITY=$(echo "$ALERT_DATA" | jq -r '.severity')
+            PACKAGE=$(echo "$ALERT_DATA" | jq -r '.dependency.package.name')
+            ECOSYSTEM=$(echo "$ALERT_DATA" | jq -r '.dependency.package.ecosystem')
+            
+            # Process the alert (use same logic as in label-and-assign-alert action)
+            # Set the alert state to 'open' to ensure it's being tracked
+            gh api --method PATCH -H "Accept: application/vnd.github+json" \
+              /repos/$REPO/dependabot/alerts/$ALERT_NUMBER \
+              -f state="open"
+            
+            # Determine team to assign based on ecosystem
+            if [[ "$ECOSYSTEM" == "npm" || "$ECOSYSTEM" == "yarn" ]]; then
+              TEAM="javascript-team"
+            elif [[ "$ECOSYSTEM" == "pip" ]]; then
+              TEAM="python-team"
+            elif [[ "$ECOSYSTEM" == "docker" ]]; then
+              TEAM="devops-team"
+            elif [[ "$ECOSYSTEM" == "github-actions" ]]; then
+              TEAM="cicd-team"
+            else
+              TEAM="security-team"
+            fi
+            
+            # Create labels if they don't exist
+            SEVERITY_LABEL="severity:$SEVERITY"
+            ECOSYSTEM_LABEL="ecosystem:$ECOSYSTEM"
+            
+            # First check if labels exist, create if they don't
+            if ! gh api -H "Accept: application/vnd.github+json" /repos/$REPO/labels | jq -e ".[] | select(.name == \"$SEVERITY_LABEL\")" > /dev/null; then
+              if [[ "$SEVERITY" == "critical" ]]; then
+                COLOR="b60205"
+              elif [[ "$SEVERITY" == "high" ]]; then
+                COLOR="d93f0b"
+              elif [[ "$SEVERITY" == "medium" ]]; then
+                COLOR="fbca04"
+              else
+                COLOR="0e8a16"
+              fi
+              gh api --method POST -H "Accept: application/vnd.github+json" \
+                /repos/$REPO/labels \
+                -f name="$SEVERITY_LABEL" \
+                -f color="$COLOR" \
+                -f description="$SEVERITY severity security alert"
+            fi
+            
+            if ! gh api -H "Accept: application/vnd.github+json" /repos/$REPO/labels | jq -e ".[] | select(.name == \"$ECOSYSTEM_LABEL\")" > /dev/null; then
+              gh api --method POST -H "Accept: application/vnd.github+json" \
+                /repos/$REPO/labels \
+                -f name="$ECOSYSTEM_LABEL" \
+                -f color="c5def5" \
+                -f description="$ECOSYSTEM ecosystem package"
+            fi
+            
+            # Check if issue already exists
+            EXISTING_ISSUE=$(gh issue list --label "dependabot-alert:$ALERT_NUMBER" --json number -q '.[0].number')
+            
+            if [ -z "$EXISTING_ISSUE" ]; then
+              # Create an issue for tracking the Dependabot alert
+              ISSUE_TITLE="Security Alert: $SEVERITY severity in $PACKAGE ($ECOSYSTEM)"
+              ISSUE_BODY="## Dependabot Security Alert\n\n"
+              ISSUE_BODY+="* **Package**: $PACKAGE\n"
+              ISSUE_BODY+="* **Ecosystem**: $ECOSYSTEM\n"
+              ISSUE_BODY+="* **Severity**: $SEVERITY\n\n"
+              ISSUE_BODY+="This issue was automatically created from a Dependabot alert.\n"
+              ISSUE_BODY+="Review the alert in the [Security tab](https://github.com/$REPO/security/dependabot/$ALERT_NUMBER)\n\n"
+              ISSUE_BODY+="### Recommended Actions:\n\n"
+              
+              if [[ "$SEVERITY" == "critical" || "$SEVERITY" == "high" ]]; then
+                ISSUE_BODY+="- [ ] Update the dependency immediately\n"
+                ISSUE_BODY+="- [ ] Check for any exploits in your codebase\n"
+                ISSUE_BODY+="- [ ] Schedule a security review\n"
+              else
+                ISSUE_BODY+="- [ ] Plan to update this dependency in the next release cycle\n"
+                ISSUE_BODY+="- [ ] Review if this dependency is still necessary\n"
+              fi
+              
+              # Create the issue with appropriate labels and assignment
+              gh issue create --title "$ISSUE_TITLE" \
+                --body "$ISSUE_BODY" \
+                --assignee "@$TEAM" \
+                --label "$SEVERITY_LABEL" \
+                --label "$ECOSYSTEM_LABEL" \
+                --label "security" \
+                --label "dependabot" \
+                --label "dependabot-alert:$ALERT_NUMBER"
+              
+              echo "Created issue for Dependabot alert #$ALERT_NUMBER (Severity: $SEVERITY, Package: $PACKAGE)"
+              
+              # If critical or high, notify in a GitHub discussion or specific channel
+              if [[ "$SEVERITY" == "critical" || "$SEVERITY" == "high" ]]; then
+                echo "::warning::Critical or high severity Dependabot alert detected for $PACKAGE!"
+              fi
+            else
+              echo "Issue #$EXISTING_ISSUE already exists for alert #$ALERT_NUMBER"
+            fi
+            
+          done < recent_alerts.txt
+
+  # Job for manual processing of an alert
+  process-manual-alert:
+    name: Process Manual Alert
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Get GitHub App token
+        id: get-token
+        uses: getsentry/action-github-app-token@v2
+        with:
+          app_id: ${{ secrets.AUTOMATION_APP_ID }}
+          private_key: ${{ secrets.AUTOMATION_PRIVATE_KEY }}
+      
+      - name: Process alert from manual input
+        id: process-manual
+        env:
+          GH_TOKEN: ${{ steps.get-token.outputs.token }}
+          ALERT_NUMBER: ${{ github.event.inputs.alert_number }}
+          REPO: ${{ github.repository }}
+        run: |
+          # Get alert details
+          ALERT_DATA=$(gh api -H "Accept: application/vnd.github+json" \
+            /repos/$REPO/dependabot/alerts/$ALERT_NUMBER)
+          
+          # Extract key information
+          SEVERITY=$(echo "$ALERT_DATA" | jq -r '.severity')
+          PACKAGE=$(echo "$ALERT_DATA" | jq -r '.dependency.package.name')
+          ECOSYSTEM=$(echo "$ALERT_DATA" | jq -r '.dependency.package.ecosystem')
+          
+          # Store data for later steps
+          echo "severity=$SEVERITY" >> $GITHUB_OUTPUT
+          echo "package=$PACKAGE" >> $GITHUB_OUTPUT
+          echo "ecosystem=$ECOSYSTEM" >> $GITHUB_OUTPUT
+          echo "alert_number=$ALERT_NUMBER" >> $GITHUB_OUTPUT
+      
+      - name: Apply labels and assignment
+        env:
+          GH_TOKEN: ${{ steps.get-token.outputs.token }}
+          ALERT_NUMBER: ${{ steps.process-manual.outputs.alert_number }}
+          REPO: ${{ github.repository }}
+          SEVERITY: ${{ steps.process-manual.outputs.severity }}
+          PACKAGE: ${{ steps.process-manual.outputs.package }}
+          ECOSYSTEM: ${{ steps.process-manual.outputs.ecosystem }}
+        run: |
+          # Set the alert state to 'open' to ensure it's being tracked
+          gh api --method PATCH -H "Accept: application/vnd.github+json" \
+            /repos/$REPO/dependabot/alerts/$ALERT_NUMBER \
+            -f state="open"
+          
+          # Determine team to assign based on ecosystem
+          if [[ "$ECOSYSTEM" == "npm" || "$ECOSYSTEM" == "yarn" ]]; then
+            TEAM="javascript-team"
+          elif [[ "$ECOSYSTEM" == "pip" ]]; then
+            TEAM="python-team"
+          elif [[ "$ECOSYSTEM" == "docker" ]]; then
+            TEAM="devops-team"
+          elif [[ "$ECOSYSTEM" == "github-actions" ]]; then
+            TEAM="cicd-team"
+          else
+            TEAM="security-team"
+          fi
+          
+          # Create labels if they don't exist
+          SEVERITY_LABEL="severity:$SEVERITY"
+          ECOSYSTEM_LABEL="ecosystem:$ECOSYSTEM"
+          
+          # First check if labels exist, create if they don't
+          if ! gh api -H "Accept: application/vnd.github+json" /repos/$REPO/labels | jq -e ".[] | select(.name == \"$SEVERITY_LABEL\")" > /dev/null; then
+            if [[ "$SEVERITY" == "critical" ]]; then
+              COLOR="b60205"
+            elif [[ "$SEVERITY" == "high" ]]; then
+              COLOR="d93f0b"
+            elif [[ "$SEVERITY" == "medium" ]]; then
+              COLOR="fbca04"
+            else
+              COLOR="0e8a16"
+            fi
+            gh api --method POST -H "Accept: application/vnd.github+json" \
+              /repos/$REPO/labels \
+              -f name="$SEVERITY_LABEL" \
+              -f color="$COLOR" \
+              -f description="$SEVERITY severity security alert"
+          fi
+          
+          if ! gh api -H "Accept: application/vnd.github+json" /repos/$REPO/labels | jq -e ".[] | select(.name == \"$ECOSYSTEM_LABEL\")" > /dev/null; then
+            gh api --method POST -H "Accept: application/vnd.github+json" \
+              /repos/$REPO/labels \
+              -f name="$ECOSYSTEM_LABEL" \
+              -f color="c5def5" \
+              -f description="$ECOSYSTEM ecosystem package"
+          fi
+          
+          # Check if issue already exists
+          EXISTING_ISSUE=$(gh issue list --label "dependabot-alert:$ALERT_NUMBER" --json number -q '.[0].number')
+          
+          if [ -z "$EXISTING_ISSUE" ]; then
+            # Create an issue for tracking the Dependabot alert
+            ISSUE_TITLE="Security Alert: $SEVERITY severity in $PACKAGE ($ECOSYSTEM)"
+            ISSUE_BODY="## Dependabot Security Alert\n\n"
+            ISSUE_BODY+="* **Package**: $PACKAGE\n"
+            ISSUE_BODY+="* **Ecosystem**: $ECOSYSTEM\n"
+            ISSUE_BODY+="* **Severity**: $SEVERITY\n\n"
+            ISSUE_BODY+="This issue was automatically created from a Dependabot alert.\n"
+            ISSUE_BODY+="Review the alert in the [Security tab](https://github.com/$REPO/security/dependabot/$ALERT_NUMBER)\n\n"
+            ISSUE_BODY+="### Recommended Actions:\n\n"
+            
+            if [[ "$SEVERITY" == "critical" || "$SEVERITY" == "high" ]]; then
+              ISSUE_BODY+="- [ ] Update the dependency immediately\n"
+              ISSUE_BODY+="- [ ] Check for any exploits in your codebase\n"
+              ISSUE_BODY+="- [ ] Schedule a security review\n"
+            else
+              ISSUE_BODY+="- [ ] Plan to update this dependency in the next release cycle\n"
+              ISSUE_BODY+="- [ ] Review if this dependency is still necessary\n"
+            fi
+            
+            # Create the issue with appropriate labels and assignment
+            gh issue create --title "$ISSUE_TITLE" \
+              --body "$ISSUE_BODY" \
+              --assignee "@$TEAM" \
+              --label "$SEVERITY_LABEL" \
+              --label "$ECOSYSTEM_LABEL" \
+              --label "security" \
+              --label "dependabot" \
+              --label "dependabot-alert:$ALERT_NUMBER"
+            
+            echo "Created issue for Dependabot alert #$ALERT_NUMBER (Severity: $SEVERITY, Package: $PACKAGE)"
+            
+            # If critical or high, notify in a GitHub discussion or specific channel
+            if [[ "$SEVERITY" == "critical" || "$SEVERITY" == "high" ]]; then
+              echo "::warning::Critical or high severity Dependabot alert detected for $PACKAGE!"
+            fi
+          else
+            echo "Issue #$EXISTING_ISSUE already exists for alert #$ALERT_NUMBER"
+          fi
+      
+      - name: Create summary
+        if: always()
+        run: |
+          echo "## Dependabot Alert Enhancement Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Alert #**: ${{ steps.process-manual.outputs.alert_number }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Severity**: ${{ steps.process-manual.outputs.severity }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Package**: ${{ steps.process-manual.outputs.package }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Ecosystem**: ${{ steps.process-manual.outputs.ecosystem }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "An issue has been created with appropriate labels and team assignment." >> $GITHUB_STEP_SUMMARY 

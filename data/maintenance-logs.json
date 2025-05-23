@@ -1,0 +1,172 @@
+[
+  {
+    "robotId": "GM-W100-2024-001",
+    "type": "routine",
+    "status": "completed",
+    "scheduledDate": "2024-01-15T09:00:00Z",
+    "startDate": "2024-01-15T09:15:00Z",
+    "completionDate": "2024-01-15T11:30:00Z",
+    "technician": {
+      "id": "tech-001",
+      "name": "John Smith"
+    },
+    "description": "Routine maintenance check - motor inspection and lubrication",
+    "partsReplaced": [
+      {
+        "partNumber": "MOT-LUB-001",
+        "partName": "Motor Lubricant",
+        "quantity": 2,
+        "cost": 45.99
+      }
+    ],
+    "cost": 91.98,
+    "downtime": 135,
+    "notes": "All systems operating within normal parameters. Minor adjustment to wheel alignment completed."
+  },
+  {
+    "robotId": "GM-F150-2023-045",
+    "type": "repair",
+    "status": "in-progress",
+    "scheduledDate": "2024-01-23T08:00:00Z",
+    "startDate": "2024-01-23T08:30:00Z",
+    "technician": {
+      "id": "tech-002",
+      "name": "Sarah Johnson"
+    },
+    "description": "Motor replacement due to overheating issues",
+    "partsReplaced": [
+      {
+        "partNumber": "MOT-F150-MAIN",
+        "partName": "Main Drive Motor",
+        "quantity": 1,
+        "cost": 1250.00
+      },
+      {
+        "partNumber": "SENS-TEMP-002",
+        "partName": "Temperature Sensor",
+        "quantity": 2,
+        "cost": 89.99
+      }
+    ],
+    "procedures": [
+      {
+        "step": 1,
+        "description": "Disconnect power and remove motor housing",
+        "completed": true,
+        "completedAt": "2024-01-23T08:45:00Z"
+      },
+      {
+        "step": 2,
+        "description": "Extract faulty motor and inspect mounting points",
+        "completed": true,
+        "completedAt": "2024-01-23T09:30:00Z"
+      },
+      {
+        "step": 3,
+        "description": "Install new motor and temperature sensors",
+        "completed": false
+      },
+      {
+        "step": 4,
+        "description": "Calibrate motor and run diagnostic tests",
+        "completed": false
+      }
+    ]
+  },
+  {
+    "robotId": "GM-W200-2024-002",
+    "type": "routine",
+    "status": "scheduled",
+    "scheduledDate": "2024-01-25T10:00:00Z",
+    "technician": {
+      "id": "tech-003",
+      "name": "Mike Chen"
+    },
+    "description": "Quarterly maintenance - full system diagnostic and battery check"
+  },
+  {
+    "robotId": "GM-W100-2023-178",
+    "type": "emergency",
+    "status": "scheduled",
+    "scheduledDate": "2024-01-23T14:00:00Z",
+    "technician": {
+      "id": "tech-001",
+      "name": "John Smith"
+    },
+    "description": "Emergency repair - robot showing critical battery and temperature alerts"
+  },
+  {
+    "robotId": "GM-F300-2023-089",
+    "type": "upgrade",
+    "status": "completed",
+    "scheduledDate": "2024-01-10T13:00:00Z",
+    "startDate": "2024-01-10T13:00:00Z",
+    "completionDate": "2024-01-10T15:45:00Z",
+    "technician": {
+      "id": "tech-004",
+      "name": "Lisa Anderson"
+    },
+    "description": "Firmware upgrade and sensor calibration",
+    "partsReplaced": [
+      {
+        "partNumber": "SENS-PROX-005",
+        "partName": "Proximity Sensor Array",
+        "quantity": 1,
+        "cost": 450.00
+      }
+    ],
+    "cost": 450.00,
+    "downtime": 165,
+    "notes": "Firmware upgraded from v1.8.5 to v1.9.1. New proximity sensors installed for improved collision detection."
+  },
+  {
+    "robotId": "GM-X500-2024-001",
+    "type": "routine",
+    "status": "completed",
+    "scheduledDate": "2024-01-20T16:00:00Z",
+    "startDate": "2024-01-20T16:00:00Z",
+    "completionDate": "2024-01-20T16:30:00Z",
+    "technician": {
+      "id": "tech-005",
+      "name": "Dr. Rachel Kim"
+    },
+    "description": "Initial system check after beta firmware installation",
+    "cost": 0,
+    "downtime": 30,
+    "notes": "All systems functioning correctly with beta firmware. Performance metrics exceeding expectations."
+  },
+  {
+    "robotId": "GM-W200-2023-234",
+    "type": "repair",
+    "status": "cancelled",
+    "scheduledDate": "2024-01-22T09:00:00Z",
+    "technician": {
+      "id": "tech-002",
+      "name": "Sarah Johnson"
+    },
+    "description": "Battery replacement",
+    "notes": "Cancelled - Robot moved to decommission queue"
+  },
+  {
+    "robotId": "GM-F150-2023-112",
+    "type": "routine",
+    "status": "scheduled",
+    "scheduledDate": "2024-01-30T11:00:00Z",
+    "technician": {
+      "id": "tech-003",
+      "name": "Mike Chen"
+    },
+    "description": "Monthly inspection and cleaning"
+  },
+  {
+    "robotId": "GM-W100-2024-001",
+    "type": "routine",
+    "status": "scheduled",
+    "scheduledDate": "2024-02-15T09:00:00Z",
+    "technician": {
+      "id": "tech-001",
+      "name": "John Smith"
+    },
+    "description": "Monthly maintenance check"
+  }
+]

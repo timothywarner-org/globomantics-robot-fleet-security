@@ -1,0 +1,270 @@
+name: Enhanced Dependency Analysis
+
+on:
+  pull_request:
+    paths:
+      - 'package.json'
+      - 'package-lock.json'
+      - 'yarn.lock'
+      - 'pnpm-lock.yaml'
+      - 'requirements.txt'
+      - 'Pipfile.lock'
+      - 'Gemfile.lock'
+      - 'go.sum'
+      - 'Cargo.lock'
+  push:
+    branches: [ main, master, develop ]
+    paths:
+      - 'package.json'
+      - 'package-lock.json'
+      - 'yarn.lock'
+      - 'pnpm-lock.yaml'
+      - 'requirements.txt'
+      - 'Pipfile.lock'
+      - 'Gemfile.lock'
+      - 'go.sum'
+      - 'Cargo.lock'
+  schedule:
+    - cron: '0 9 * * 1' # Every Monday at 9 AM UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+  security-events: write
+  issues: write
+
+jobs:
+  # Job for contextual dependency analysis
+  analyze-dependencies:
+    name: Contextual Dependency Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Main analysis using npm audit
+      - name: Run npm audit
+        id: npm-audit
+        continue-on-error: true
+        run: |
+          npm audit --json > npm-audit-results.json
+          # Extract the count of each severity level
+          echo "critical=$(cat npm-audit-results.json | jq '.metadata.vulnerabilities.critical')" >> $GITHUB_OUTPUT
+          echo "high=$(cat npm-audit-results.json | jq '.metadata.vulnerabilities.high')" >> $GITHUB_OUTPUT
+          echo "moderate=$(cat npm-audit-results.json | jq '.metadata.vulnerabilities.moderate')" >> $GITHUB_OUTPUT
+          echo "low=$(cat npm-audit-results.json | jq '.metadata.vulnerabilities.low')" >> $GITHUB_OUTPUT
+          # Extract advisories for later contextualization
+          cat npm-audit-results.json | jq '.advisories' > advisories.json
+
+      # Get Exploit Prediction Scoring System (EPSS) data for each vulnerability
+      - name: Get EPSS data
+        if: steps.npm-audit.outputs.critical != '0' || steps.npm-audit.outputs.high != '0'
+        run: |
+          mkdir -p epss-data
+          # Extract CVE IDs from advisories
+          jq -r 'to_entries[] | .value.cves[]? | select(. != null)' advisories.json > cve-list.txt
+          # For each CVE, fetch EPSS data
+          while read -r cve; do
+            curl -s "https://api.first.org/data/v1/epss?cve=$cve" > "epss-data/$cve.json"
+            sleep 1  # Rate limiting
+          done < cve-list.txt
+
+      # Get CVSS exploit data from NVD
+      - name: Get NVD data
+        if: steps.npm-audit.outputs.critical != '0' || steps.npm-audit.outputs.high != '0'
+        run: |
+          mkdir -p nvd-data
+          # For each CVE, fetch NVD data
+          while read -r cve; do
+            curl -s -H "apiKey: ${{ secrets.NVD_API_KEY || '' }}" \
+              "https://services.nvd.nist.gov/rest/json/cves/2.0?cveId=$cve" > "nvd-data/$cve.json"
+            sleep 1.5  # Rate limiting
+          done < cve-list.txt
+
+      # Check if vulnerabilities are in actively exploited list
+      - name: Check for active exploits
+        id: check-exploits
+        if: steps.npm-audit.outputs.critical != '0' || steps.npm-audit.outputs.high != '0'
+        run: |
+          curl -s "https://raw.githubusercontent.com/cisagov/ncas/develop/known_exploited_vulnerabilities.json" > exploited-cves.json
+          # Create list of actively exploited CVEs
+          jq -r '.vulnerabilities[].cveID' exploited-cves.json > exploited-list.txt
+          # Check if any of our CVEs are in the exploited list
+          exploited_count=0
+          exploited_cves=""
+          while read -r cve; do
+            if grep -q "$cve" exploited-list.txt; then
+              exploited_count=$((exploited_count + 1))
+              exploited_cves="$exploited_cves $cve"
+            fi
+          done < cve-list.txt
+          echo "exploited_count=$exploited_count" >> $GITHUB_OUTPUT
+          echo "exploited_cves=$exploited_cves" >> $GITHUB_OUTPUT
+
+      # Save exploited CVEs to file for later use
+      - name: Save exploited CVEs to file
+        if: steps.check-exploits.outputs.exploited_count > 0
+        run: |
+          echo "${{ steps.check-exploits.outputs.exploited_cves }}" > exploited-cves-list.txt
+
+      # Combine and process all vulnerability data
+      - name: Generate enhanced vulnerability report
+        id: enhanced-report
+        run: |
+          echo "## Enhanced Dependency Vulnerability Analysis" > vulnerability-report.md
+          echo "" >> vulnerability-report.md
+          echo "### Summary" >> vulnerability-report.md
+          echo "" >> vulnerability-report.md
+          echo "| Severity | Count |" >> vulnerability-report.md
+          echo "|----------|-------|" >> vulnerability-report.md
+          echo "| Critical | ${{ steps.npm-audit.outputs.critical || 0 }} |" >> vulnerability-report.md
+          echo "| High     | ${{ steps.npm-audit.outputs.high || 0 }} |" >> vulnerability-report.md
+          echo "| Moderate | ${{ steps.npm-audit.outputs.moderate || 0 }} |" >> vulnerability-report.md
+          echo "| Low      | ${{ steps.npm-audit.outputs.low || 0 }} |" >> vulnerability-report.md
+          echo "" >> vulnerability-report.md
+          
+          if [ "${{ steps.check-exploits.outputs.exploited_count }}" -gt 0 ]; then
+            echo "### ⚠️ CRITICAL: Actively Exploited Vulnerabilities Detected ⚠️" >> vulnerability-report.md
+            echo "" >> vulnerability-report.md
+            echo "The following CVEs have known active exploits in the wild:" >> vulnerability-report.md
+            echo "${{ steps.check-exploits.outputs.exploited_cves }}" >> vulnerability-report.md
+            echo "" >> vulnerability-report.md
+            echo "**Immediate remediation is strongly recommended!**" >> vulnerability-report.md
+            echo "" >> vulnerability-report.md
+          fi
+          
+          if [ "${{ steps.npm-audit.outputs.critical }}" -gt 0 ] || [ "${{ steps.npm-audit.outputs.high }}" -gt 0 ]; then
+            echo "### High and Critical Vulnerabilities" >> vulnerability-report.md
+            echo "" >> vulnerability-report.md
+            jq -r 'to_entries[] | select(.value.severity == "critical" or .value.severity == "high") | 
+              "#### \(.value.title) (\(.value.severity))\n\n\(.value.overview)\n\n**Affected Package**: \(.key) \(.value.vulnerable_versions)\n\n**Recommendation**: \(.value.recommendation)\n\n---\n"' \
+              advisories.json >> vulnerability-report.md
+          fi
+          
+          # Add exploitability information if available
+          echo "### Exploitability Assessment" >> vulnerability-report.md
+          echo "" >> vulnerability-report.md
+          echo "This analysis uses the Exploit Prediction Scoring System (EPSS) to estimate the likelihood of a vulnerability being exploited in the next 30 days." >> vulnerability-report.md
+          echo "" >> vulnerability-report.md
+          
+          while read -r cve; do
+            if [ -f "epss-data/$cve.json" ]; then
+              epss_score=$(jq -r '.data[0].epss' "epss-data/$cve.json")
+              if [ "$epss_score" != "null" ] && [ -n "$epss_score" ]; then
+                # Convert to percentage and format
+                epss_percent=$(echo "$epss_score * 100" | bc -l | xargs printf "%.2f")
+                echo "- **$cve**: $epss_percent% chance of exploitation in the next 30 days" >> vulnerability-report.md
+              fi
+            fi
+          done < cve-list.txt
+          
+          # Add dependencies section
+          echo "" >> vulnerability-report.md
+          echo "### Vulnerable Dependencies" >> vulnerability-report.md
+          echo "" >> vulnerability-report.md
+          jq -r 'to_entries[] | "- \(.key): \(.value.vulnerable_versions) → \(.value.patched_versions || "No patch available")"' \
+            advisories.json >> vulnerability-report.md
+          
+          cat vulnerability-report.md
+
+      # Create or update comment on pull request
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const reportContent = fs.readFileSync('vulnerability-report.md', 'utf8');
+            
+            // Find existing comment
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            
+            const botComment = comments.find(comment => {
+              return comment.user.type === 'Bot' && 
+                     comment.body.includes('Enhanced Dependency Vulnerability Analysis');
+            });
+            
+            // Update or create comment
+            const commentBody = `<!-- DEPENDENCY-ANALYSIS -->\n${reportContent}`;
+            
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: commentBody
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: commentBody
+              });
+            }
+
+      # Create issue for exploited vulnerabilities if detected
+      - name: Create critical issue
+        if: steps.check-exploits.outputs.exploited_count > 0
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const reportContent = fs.readFileSync('vulnerability-report.md', 'utf8');
+            const exploitedCVEs = fs.readFileSync('exploited-cves-list.txt', 'utf8').trim();
+            
+            const issueTitle = '🚨 CRITICAL: Actively Exploited Vulnerabilities Detected';
+            const issueBody = `
+            # Actively Exploited Vulnerabilities Detected
+
+            This is a high-priority notification that dependencies in this repository contain vulnerabilities that are being actively exploited in the wild.
+
+            ## Affected CVEs
+            ${exploitedCVEs}
+
+            ## Full Report
+            ${reportContent}
+
+            ## Required Action
+            These vulnerabilities should be addressed immediately as they pose a significant security risk.
+
+            1. Update the affected dependencies to their patched versions
+            2. Conduct a thorough security review to ensure no exploitation has occurred
+            3. Consider implementing additional defensive measures
+            `;
+            
+            // Create the issue
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: issueTitle,
+              body: issueBody,
+              labels: ['security', 'critical', 'vulnerability']
+            });
+
+      # Upload analysis as artifact
+      - name: Upload vulnerability report
+        uses: actions/upload-artifact@v4
+        with:
+          name: vulnerability-report
+          path: |
+            vulnerability-report.md
+            npm-audit-results.json
+            epss-data/
+            nvd-data/ 

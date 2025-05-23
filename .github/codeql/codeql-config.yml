@@ -1,0 +1,87 @@
+name: "Enhanced Dependency Usage CodeQL Configuration"
+
+# Custom query suite for JavaScript/Node.js
+query-filters:
+  - include:
+      tags:
+        - security
+        - external-api
+
+# Add additional query packs for specific dependency vulnerabilities
+packs:
+  # JavaScript dependency analysis
+  - codeql/javascript-queries
+  - codeql/javascript-security-extended
+  
+  # Python dependency analysis  
+  - codeql/python-queries
+  - codeql/python-security-extended
+
+# All queries, including both standard suites and custom queries
+queries:
+  # Include standard query suites
+  - uses: security-extended
+  - uses: security-and-quality
+
+  # JavaScript/Node.js custom queries
+  - name: JavaScript Dependency Injection
+    uses: security-and-quality/javascript/dependency-injection.ql
+    description: "Detects improper dependency injection patterns"
+  
+  - name: JavaScript Unsafe Package Import
+    uses: security-and-quality/javascript/unsafe-package-import.ql
+    description: "Detects imports of packages with known vulnerable usage patterns"
+  
+  - name: JavaScript Prototype Pollution
+    uses: security-and-quality/javascript/prototype-pollution.ql
+    description: "Detects code that could allow prototype pollution"
+  
+  - name: JavaScript Command Injection via Dependencies
+    uses: security-and-quality/javascript/command-line-injection.ql
+    description: "Detects command injection via dependency usage"
+  
+  # Python custom queries
+  - name: Python Unsafe Deserialization
+    uses: security-and-quality/python/unsafe-deserialization.ql
+    description: "Detects unsafe deserialization of input"
+  
+  - name: Python SQL Injection via ORM
+    uses: security-and-quality/python/sql-injection.ql
+    description: "Detects SQL injection via ORM libraries"
+  
+  - name: Python Path Injection
+    uses: security-and-quality/python/path-injection.ql
+    description: "Detects path injection vulnerabilities"
+
+paths:
+  # Focus analysis on application code, not dependencies
+  - src
+  - app
+  - lib
+  - routes
+  - controllers
+  - models
+  - utils
+  - views
+  - tests
+
+paths-ignore:
+  # Don't analyze third-party code
+  - node_modules
+  - .venv
+  - venv
+  - '**/vendor/**'
+  - '**/*.min.js'
+  - 'public/js/vendor/**'
+
+# Additional options
+path-classifiers:
+  test:
+    - 'tests/'
+    - '**/__tests__/'
+    - '**/*.test.js'
+    - '**/*.test.py'
+    - '**/*.spec.js'
+
+# Enable inter-procedural analysis and taint tracking
+enable-all-experimental-features: true 

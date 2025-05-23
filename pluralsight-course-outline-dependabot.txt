@@ -1,0 +1,25 @@
+Course Outline: Enhance Software Supply Chain Security with Dependency Review  
+
+Module 1: Explain the Importance of Supply Chain Security
+Define software supply chain security.  
+Identify risks associated with using third-party dependencies.  
+Explain the role of dependency scanning in securing software.  
+Discuss real-world incidents of supply chain attacks.  
+
+Module 2: Enable and Use GitHub’s Dependency Review 
+Enable dependency review in a test repository.  
+Review dependency changes in pull requests.  
+Interpret dependency review reports.  
+Resolve security vulnerabilities in dependencies.  
+
+Module 3: Manage Dependency Alerts and Automated Security Updates
+Enable Dependabot alerts for vulnerable dependencies.  
+Configure automatic security updates using Dependabot.  
+Review and merge security update pull requests.  
+Monitor dependency risks using GitHub’s security dashboard.  
+
+Module 4: Implement Secure Dependency Management Practices 
+Maintain a list of approved dependencies.  
+Regularly update dependencies to avoid vulnerabilities.  
+Use software composition analysis (SCA) tools.  
+Automate dependency security reviews in CI/CD pipelines.  
