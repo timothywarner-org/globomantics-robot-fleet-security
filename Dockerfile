@@ -10,13 +10,13 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install dependencies
-RUN npm ci --only=production
+RUN npm install
 
 # Copy application files
 COPY . .
 
-# Create directories for logs
-RUN mkdir -p logs
+# Create directories for logs with proper permissions
+RUN mkdir -p logs && chmod 777 logs
 
 # Expose port
 EXPOSE 3000

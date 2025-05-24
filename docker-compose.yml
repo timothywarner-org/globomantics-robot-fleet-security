@@ -1,11 +1,13 @@
-version: '3.8'
+# Docker Compose file for Globomantics Robot Fleet Security
+# Note: If using Windows, run this from your WSL2 terminal with the run-docker.sh script
+# Run: ./scripts/run-docker.sh
 
 services:
   app:
     build: .
     container_name: globomantics-robot-fleet
     ports:
-      - "3000:3000"
+      - "30000:3000"
     environment:
       - NODE_ENV=development
       - PORT=3000
@@ -53,8 +55,8 @@ services:
     image: eclipse-mosquitto:2
     container_name: globomantics-mqtt
     ports:
-      - "1883:1883"
-      - "9001:9001"
+      - "18830:1883"
+      - "19001:9001"
     volumes:
       - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
       - mqtt-data:/mosquitto/data
@@ -64,7 +66,7 @@ services:
 
   # Optional: MongoDB Express for database management
   mongo-express:
-    image: mongo-express:1.0-alpha
+    image: mongo-express:latest
     container_name: globomantics-mongo-express
     ports:
       - "8081:8081"

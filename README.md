@@ -11,6 +11,96 @@ This repository demonstrates real-world implementation of GitHub Advanced Securi
 - Enhanced security workflows and automations
 - Multi-layered security approach for modern applications
 
+## Running the Application
+
+This repo contains a working Robot Fleet Management application that can be used to demonstrate the security features.
+
+### Prerequisites
+
+- Docker and Docker Compose
+- Node.js 18+ and npm 9+ (for local development)
+
+### Quick Start with Docker
+
+The easiest way to run the application is using Docker Compose:
+
+```bash
+# Start all services
+docker-compose up -d
+
+# View logs
+docker-compose logs -f app
+
+# Access the application at http://localhost:30000
+# MongoDB Express admin interface at http://localhost:8081
+```
+
+#### Running in Windows
+
+We've included idempotent startup scripts that handle cleaning up previous containers and freeing ports:
+
+##### Using WSL2 (Recommended for Windows)
+
+If you're using Windows with WSL2, you can use the Bash script:
+
+```bash
+# From WSL2 terminal
+./scripts/run-docker.sh
+```
+
+##### Using PowerShell
+
+If you prefer PowerShell:
+
+```powershell
+# From PowerShell
+.\scripts\run-docker.ps1
+```
+
+These scripts:
+- Stop and remove any existing containers
+- Free up required ports that might be in use
+- Ensure a clean startup environment
+- Provide helpful output and error messages
+
+### Running Locally
+
+If you prefer to run the application without Docker:
+
+1. Install dependencies:
+```bash
+npm install
+```
+
+2. Copy environment configuration:
+```bash
+cp .env.example .env
+```
+
+3. Start the application:
+```bash
+npm start
+```
+
+4. Access the application at http://localhost:3000
+
+### Default Credentials
+
+- Username: `admin`
+- Password: `Password1!`
+
+## Port Configuration
+
+The application uses the following ports:
+
+| Service        | Port  | Description                      |
+|----------------|-------|----------------------------------|
+| Web Application| 30000 | Main web interface               |
+| MongoDB        | 27017 | Database                         |
+| Redis          | 6379  | Cache and session storage        |
+| MQTT           | 18830 | Message broker for IoT devices   |
+| MongoDB Express| 8081  | MongoDB admin interface          |
+
 ## Security Features
 
 ### Dependency Security
@@ -62,6 +152,35 @@ For security policy and vulnerability reporting, please see [SECURITY.md](SECURI
 - Input validation and sanitization
 - Secure password hashing with bcrypt
 - HTTPS support in production
+
+## Trying the Security Features
+
+To experience the security features in action:
+
+### Pre-commit Dependency Scanning
+
+1. Install the pre-commit hooks:
+```bash
+bash .github/scripts/install-hooks.sh
+```
+
+2. Try making a commit that would introduce a vulnerable dependency (the hook will block it)
+
+### Enhanced Dependency Analysis
+
+1. Create a branch and modify the package.json file to introduce a vulnerable dependency
+2. Create a pull request
+3. Observe the detailed dependency analysis comment added to the PR
+
+### CodeQL Analysis
+
+1. Create a branch and introduce a code vulnerability (like a SQL injection)
+2. Create a pull request
+3. Observe how CodeQL detects the issue and correlates it with dependency information
+
+### Viewing Security Reports
+
+The repository contains several example report artifacts from previous workflow runs in the `.github/examples` directory that you can review to understand the output formats.
 
 ## About the Pluralsight Course
 

@@ -1,0 +1,99 @@
+# GitHub Labels Configuration
+# These labels are designed for the Globomantics robot management training application
+# Use with GitHub CLI: gh label create -F .github/labels.yml
+
+# Dependency Management
+- name: dependencies
+  color: "0366d6"
+  description: "Pull requests that update a dependency file"
+
+- name: npm
+  color: "e99695"
+  description: "npm package updates"
+
+- name: docker
+  color: "0db7ed"
+  description: "Docker dependency updates"
+
+- name: github-actions
+  color: "000000"
+  description: "GitHub Actions workflow updates"
+
+# Security
+- name: security
+  color: "d73a4a"
+  description: "Security vulnerability fixes"
+
+- name: critical-security
+  color: "b60205"
+  description: "Critical security updates requiring immediate attention"
+
+# Automation
+- name: automated
+  color: "795548"
+  description: "Automated pull requests from bots"
+
+- name: auto-merge
+  color: "2e7d32"
+  description: "Pull requests eligible for automatic merging"
+
+# Robot System Components
+- name: robot-firmware
+  color: "5319e7"
+  description: "Updates to robot firmware components"
+
+- name: telemetry
+  color: "006b75"
+  description: "Telemetry system updates"
+
+- name: mqtt
+  color: "1d76db"
+  description: "MQTT messaging system updates"
+
+- name: maintenance
+  color: "fbca04"
+  description: "Maintenance system updates"
+
+# Priority Levels
+- name: priority-high
+  color: "d93f0b"
+  description: "High priority updates"
+
+- name: priority-medium
+  color: "f9d71c"
+  description: "Medium priority updates"
+
+- name: priority-low
+  color: "c5def5"
+  description: "Low priority updates"
+
+# Review Status
+- name: needs-review
+  color: "ff7619"
+  description: "Requires manual review before merging"
+
+- name: approved
+  color: "0e8a16"
+  description: "Approved and ready to merge"
+
+# Update Types
+- name: major-update
+  color: "b60205"
+  description: "Major version updates (breaking changes)"
+
+- name: minor-update
+  color: "ff9800"
+  description: "Minor version updates (new features)"
+
+- name: patch-update
+  color: "4caf50"
+  description: "Patch version updates (bug fixes)"
+
+# Training Specific
+- name: training-exercise
+  color: "d4c5f9"
+  description: "Part of a training exercise"
+
+- name: globomantics
+  color: "7057ff"
+  description: "Globomantics-specific updates"

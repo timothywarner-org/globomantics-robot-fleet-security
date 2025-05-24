@@ -23,10 +23,10 @@ updates:
       - "automated"
     # Add reviewers
     reviewers:
-      - "octocat"
+      - "timothywarner"
     # Add assignees
     assignees:
-      - "octocat"
+      - "timothywarner"
     # Specify which dependencies to update
     allow:
       # Only allow updates for production dependencies
@@ -67,6 +67,9 @@ updates:
       - "dependencies"
       - "github-actions"
       - "automated"
+    # Add assignees
+    assignees:
+      - "timothywarner"
     commit-message:
       prefix: "ci"
       include: "scope"
@@ -82,3 +85,6 @@ updates:
       - "dependencies"
       - "docker"
       - "security"
+    # Add assignees
+    assignees:
+      - "timothywarner"

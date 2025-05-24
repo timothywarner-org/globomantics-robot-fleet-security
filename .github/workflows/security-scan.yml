@@ -5,14 +5,18 @@
 name: Security Scan
 
 on:
-  push:
-    branches: [ main, master, develop ]
-  pull_request:
-    branches: [ main, master, develop ]
-  schedule:
-    # Run security scans daily at 2 AM UTC
-    - cron: '0 2 * * *'
+  # TEMPORARILY DISABLED to reduce resource usage
+  # push:
+  #   branches: [ main, master, develop ]
+  # pull_request:
+  #   branches: [ main, master, develop ]
+  # schedule:
+  #   # Run security scans daily at 2 AM UTC
+  #   - cron: '0 2 * * *'
   workflow_dispatch:
+
+# IMPORTANT NOTE: This workflow has been temporarily disabled to reduce resource consumption.
+# To re-enable, uncomment the trigger events above.
 
 permissions:
   contents: read

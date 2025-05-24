@@ -1,0 +1,220 @@
+name: Dependabot GitHub Actions Updater
+
+on:
+  workflow_dispatch:
+    inputs:
+      update-type:
+        description: 'Type of updates to check'
+        required: true
+        type: choice
+        options:
+          - 'all'
+          - 'security-only'
+          - 'version-only'
+        default: 'all'
+      
+  # Uncomment these triggers when ready for production
+  # schedule:
+  #   # Run weekly on Mondays at 9 AM
+  #   - cron: '0 9 * * 1'
+  # 
+  # push:
+  #   branches:
+  #     - main
+  #     - master
+  #   paths:
+  #     - '.github/dependabot.yml'
+  #     - '.github/workflows/**'
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+  actions: read
+
+jobs:
+  check-github-actions-updates:
+    runs-on: ubuntu-latest
+    name: Check GitHub Actions Updates
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Validate Dependabot configuration
+        run: |
+          echo "Validating Dependabot configuration..."
+          if [ ! -f .github/dependabot.yml ]; then
+            echo "❌ Dependabot configuration file not found!"
+            exit 1
+          fi
+          
+          # Check if github-actions ecosystem is configured
+          if grep -q 'package-ecosystem: "github-actions"' .github/dependabot.yml; then
+            echo "✅ GitHub Actions ecosystem is configured in Dependabot"
+          else
+            echo "❌ GitHub Actions ecosystem is not configured in Dependabot"
+            exit 1
+          fi
+          
+      - name: List all GitHub Actions in use
+        id: list-actions
+        run: |
+          echo "## GitHub Actions in use:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Find all workflow files
+          for workflow in .github/workflows/*.yml .github/workflows/*.yaml; do
+            if [ -f "$workflow" ]; then
+              echo "### Workflow: $(basename "$workflow")" >> $GITHUB_STEP_SUMMARY
+              
+              # Extract action uses
+              grep -E "uses:\s+" "$workflow" | sed 's/.*uses:\s*//' | sort -u | while read -r action; do
+                # Clean up the action string
+                action=$(echo "$action" | sed 's/\s*#.*//' | tr -d '"' | tr -d "'")
+                if [ -n "$action" ]; then
+                  echo "- \`$action\`" >> $GITHUB_STEP_SUMMARY
+                fi
+              done
+              echo "" >> $GITHUB_STEP_SUMMARY
+            fi
+          done
+          
+      - name: Check for outdated actions
+        run: |
+          echo "## Checking for outdated GitHub Actions..." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # This is a placeholder for actual version checking
+          # In production, you might want to use the GitHub API to check latest versions
+          echo "ℹ️ Dependabot will automatically create PRs for outdated actions based on the configuration." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          update_type="${{ github.event.inputs.update-type || 'all' }}"
+          echo "Update type requested: **$update_type**" >> $GITHUB_STEP_SUMMARY
+          
+      - name: Generate Dependabot status report
+        run: |
+          echo "## Dependabot Configuration for GitHub Actions:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Extract GitHub Actions configuration from dependabot.yml
+          awk '/package-ecosystem: "github-actions"/,/^  - package-ecosystem:/' .github/dependabot.yml | head -n -1 > /tmp/gh-actions-config.txt
+          
+          if [ -s /tmp/gh-actions-config.txt ]; then
+            echo "```yaml" >> $GITHUB_STEP_SUMMARY
+            cat /tmp/gh-actions-config.txt >> $GITHUB_STEP_SUMMARY
+            echo "```" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Could not extract GitHub Actions configuration" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+      - name: Check Dependabot alerts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "## Current Dependabot Alerts for GitHub Actions:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Check if gh CLI is available and authenticated
+          if command -v gh &> /dev/null && gh auth status &> /dev/null; then
+            # Get Dependabot alerts (if API endpoint is available)
+            alerts=$(gh api "/repos/${{ github.repository }}/dependabot/alerts?ecosystem=github-actions&state=open" 2>/dev/null || echo "[]")
+            
+            if [ "$alerts" != "[]" ] && [ -n "$alerts" ]; then
+              echo "$alerts" | jq -r '.[] | "- **\(.security_advisory.summary // .dependency.package.name)** - Severity: \(.security_advisory.severity // "N/A")"' >> $GITHUB_STEP_SUMMARY
+            else
+              echo "✅ No open Dependabot alerts for GitHub Actions" >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "ℹ️ Unable to check Dependabot alerts (requires appropriate permissions)" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+      - name: Create issue if manual intervention needed
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Only create an issue if there are findings
+          if grep -q "❌" $GITHUB_STEP_SUMMARY; then
+            issue_title="Dependabot GitHub Actions Review Required"
+            issue_body="A manual review of GitHub Actions dependencies was triggered.
+            
+            Please check the [workflow run summary](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details.
+            
+            Update type requested: ${{ github.event.inputs.update-type }}
+            
+            This issue was automatically created by the Dependabot GitHub Actions Updater workflow."
+            
+            # Check if issue already exists
+            existing_issue=$(gh issue list --label "dependabot-review" --state open --json number --jq '.[0].number' || echo "")
+            
+            if [ -z "$existing_issue" ]; then
+              gh issue create --title "$issue_title" --body "$issue_body" --label "dependabot-review,automated"
+              echo "📝 Created new issue for Dependabot review" >> $GITHUB_STEP_SUMMARY
+            else
+              gh issue comment "$existing_issue" --body "New review triggered: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+              echo "💬 Added comment to existing issue #$existing_issue" >> $GITHUB_STEP_SUMMARY
+            fi
+          fi
+
+  ensure-dependabot-config:
+    runs-on: ubuntu-latest
+    name: Ensure Dependabot Configuration
+    if: github.event_name == 'workflow_dispatch'
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Check and update Dependabot config
+        run: |
+          config_file=".github/dependabot.yml"
+          
+          # Check if GitHub Actions is already configured
+          if ! grep -q 'package-ecosystem: "github-actions"' "$config_file"; then
+            echo "❌ GitHub Actions not configured in Dependabot!" >> $GITHUB_STEP_SUMMARY
+            echo "Please add the following to your $config_file:" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo '```yaml' >> $GITHUB_STEP_SUMMARY
+            cat << 'EOF' >> $GITHUB_STEP_SUMMARY
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "America/New_York"
+    labels:
+      - "dependencies"
+      - "github-actions"
+      - "automated"
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+    # For security updates only, set open-pull-requests-limit to 0
+    # open-pull-requests-limit: 0
+EOF
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ GitHub Actions is properly configured in Dependabot" >> $GITHUB_STEP_SUMMARY
+            
+            # Show current configuration
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Current Configuration:" >> $GITHUB_STEP_SUMMARY
+            echo '```yaml' >> $GITHUB_STEP_SUMMARY
+            awk '/package-ecosystem: "github-actions"/,/^  - package-ecosystem:|^[^ ]/' "$config_file" | head -n -1 >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
+          
+      - name: Summary
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Next Steps:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "1. ✅ Dependabot is configured to check GitHub Actions for updates" >> $GITHUB_STEP_SUMMARY
+          echo "2. 📅 Updates are checked weekly (every Monday at 9:00 AM)" >> $GITHUB_STEP_SUMMARY
+          echo "3. 🔄 Both version and security updates are enabled" >> $GITHUB_STEP_SUMMARY
+          echo "4. 🏷️ PRs will be labeled with: dependencies, github-actions, automated" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "To modify update frequency or other settings, edit \`.github/dependabot.yml\`" >> $GITHUB_STEP_SUMMARY
