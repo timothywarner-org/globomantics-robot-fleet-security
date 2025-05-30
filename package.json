@@ -35,7 +35,7 @@
     "socket.io": "^4.6.1",
     "mqtt": "^5.3.4",
     "winston": "^3.11.0",
-    "winston-daily-rotate-file": "^4.7.1",
+    "winston-daily-rotate-file": "^5.0.0",
     "axios": "^1.6.5",
     "node-cron": "^3.0.3",
     "uuid": "^9.0.1",
