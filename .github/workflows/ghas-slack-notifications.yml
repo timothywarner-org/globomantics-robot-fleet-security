@@ -10,19 +10,19 @@ on:
 
   # Check for new alerts periodically
   schedule:
-    - cron: '0 */6 * * *'  # Every 6 hours
+    - cron: "0 */6 * * *" # Every 6 hours
 
   # Manual trigger for testing
   workflow_dispatch:
     inputs:
       test_message:
-        description: 'Test message to send to Slack'
+        description: "Test message to send to Slack"
         required: false
-        default: '🧪 Testing GHAS-to-Slack integration'
+        default: "🧪 Testing GHAS-to-Slack integration"
       check_type:
-        description: 'Type of security check'
+        description: "Type of security check"
         required: false
-        default: 'all'
+        default: "all"
         type: choice
         options:
           - all
@@ -127,12 +127,36 @@ jobs:
             *) COLOR="#808080" ;;
           esac
 
+                    # Create detailed alert breakdown
+          ALERT_DETAILS=""
+          if [[ "$ALERT_COUNT" -gt 0 ]]; then
+            # Check if we have CodeQL alerts to report
+            if [[ "$CHECK_TYPE" == "all" || "$CHECK_TYPE" == "code-scanning" ]]; then
+              CODE_COUNT_CHECK=$(echo "$CODE_ALERTS" | jq -r '. | length' 2>/dev/null || echo "0")
+              if [[ "$CODE_COUNT_CHECK" -gt 0 ]]; then
+                ALERT_DETAILS="${ALERT_DETAILS}🔍 *CodeQL Alerts:* $CODE_COUNT_CHECK found\\n"
+              fi
+            fi
+            # Check if we have Dependabot alerts to report
+            if [[ "$CHECK_TYPE" == "all" || "$CHECK_TYPE" == "dependabot" ]]; then
+              DEP_COUNT_CHECK=$(echo "$DEP_ALERTS" | jq -r '. | length' 2>/dev/null || echo "0")
+              if [[ "$DEP_COUNT_CHECK" -gt 0 ]]; then
+                ALERT_DETAILS="${ALERT_DETAILS}📦 *Dependabot Alerts:* $DEP_COUNT_CHECK found\\n"
+              fi
+            fi
+          fi
+
+          # Get current timestamp in epoch format for Slack
+          CURRENT_TIMESTAMP=$(date +%s)
+
           echo "alert_count=$ALERT_COUNT" >> $GITHUB_OUTPUT
           echo "alert_type=$ALERT_TYPE" >> $GITHUB_OUTPUT
           echo "severity=$SEVERITY" >> $GITHUB_OUTPUT
           echo "color=$COLOR" >> $GITHUB_OUTPUT
           echo "alert_url=$ALERT_URL" >> $GITHUB_OUTPUT
           echo "message=$MESSAGE" >> $GITHUB_OUTPUT
+          echo "alert_details=$ALERT_DETAILS" >> $GITHUB_OUTPUT
+          echo "timestamp=$CURRENT_TIMESTAMP" >> $GITHUB_OUTPUT
 
           # Only send notification if alerts found or manual test
           if [[ "$ALERT_COUNT" -gt 0 || "${{ github.event_name }}" == "workflow_dispatch" ]]; then
@@ -141,7 +165,7 @@ jobs:
             echo "should_notify=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: 🚨 Send Slack Notification
+      - name: 🚨 Send Enhanced Slack Notification
         if: steps.alert-details.outputs.should_notify == 'true'
         uses: 8398a7/action-slack@v3
         with:
@@ -157,7 +181,20 @@ jobs:
                       "type": "header",
                       "text": {
                         "type": "plain_text",
-                        "text": "🚨 Security Alert: ${{ steps.alert-details.outputs.severity }} Severity"
+                        "text": "🚨 GHAS Security Alert: ${{ steps.alert-details.outputs.severity }} Severity",
+                        "emoji": true
+                      }
+                    },
+                    {
+                      "type": "section",
+                      "text": {
+                        "type": "mrkdwn",
+                        "text": "${{ steps.alert-details.outputs.message }}"
+                      },
+                      "accessory": {
+                        "type": "image",
+                        "image_url": "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png",
+                        "alt_text": "GitHub Security"
                       }
                     },
                     {
@@ -165,19 +202,35 @@ jobs:
                       "fields": [
                         {
                           "type": "mrkdwn",
-                          "text": "*Repository:*\n${{ github.repository }}"
+                          "text": "*🏢 Repository:*\n`${{ github.repository }}`"
                         },
                         {
                           "type": "mrkdwn",
-                          "text": "*Alert Type:*\n${{ steps.alert-details.outputs.alert_type }}"
+                          "text": "*🔍 Alert Type:*\n${{ steps.alert-details.outputs.alert_type }}"
                         },
                         {
                           "type": "mrkdwn",
-                          "text": "*Severity:*\n${{ steps.alert-details.outputs.severity }}"
+                          "text": "*⚠️ Severity Level:*\n${{ steps.alert-details.outputs.severity }}"
                         },
                         {
                           "type": "mrkdwn",
-                          "text": "*Branch:*\n${{ github.ref_name }}"
+                          "text": "*🌿 Branch:*\n`${{ github.ref_name }}`"
+                        },
+                        {
+                          "type": "mrkdwn",
+                          "text": "*👤 Triggered By:*\n${{ github.actor }}"
+                        },
+                        {
+                          "type": "mrkdwn",
+                          "text": "*📅 Event Type:*\n${{ github.event_name }}"
+                        },
+                        {
+                          "type": "mrkdwn",
+                          "text": "*🔗 Workflow:*\n${{ github.workflow }}"
+                        },
+                        {
+                          "type": "mrkdwn",
+                          "text": "*🔢 Run ID:*\n#${{ github.run_number }}"
                         }
                       ]
                     },
@@ -185,7 +238,7 @@ jobs:
                       "type": "section",
                       "text": {
                         "type": "mrkdwn",
-                        "text": "${{ steps.alert-details.outputs.message }}"
+                        "text": "*📊 Alert Summary:*\n• Total Alerts Found: `${{ steps.alert-details.outputs.alert_count }}`\n${{ steps.alert-details.outputs.alert_details }}• Repository: `${{ github.repository }}`\n• Commit: `${{ github.sha }}`\n• Scan Triggered: `${{ github.event_name }}`"
                       }
                     },
                     {
@@ -195,26 +248,72 @@ jobs:
                           "type": "button",
                           "text": {
                             "type": "plain_text",
-                            "text": "🔍 View Alert"
+                            "text": "🔍 View Alerts",
+                            "emoji": true
                           },
+                          "style": "danger",
                           "url": "${{ steps.alert-details.outputs.alert_url }}"
                         },
                         {
                           "type": "button",
                           "text": {
                             "type": "plain_text",
-                            "text": "📊 View Security Tab"
+                            "text": "📊 Security Dashboard",
+                            "emoji": true
                           },
+                          "style": "primary",
                           "url": "${{ github.server_url }}/${{ github.repository }}/security"
+                        },
+                        {
+                          "type": "button",
+                          "text": {
+                            "type": "plain_text",
+                            "text": "🔧 View Workflow",
+                            "emoji": true
+                          },
+                          "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                        },
+                        {
+                          "type": "button",
+                          "text": {
+                            "type": "plain_text",
+                            "text": "📈 Insights",
+                            "emoji": true
+                          },
+                          "url": "${{ github.server_url }}/${{ github.repository }}/pulse"
                         }
                       ]
+                    },
+                    {
+                      "type": "divider"
+                    },
+                    {
+                      "type": "context",
+                      "elements": [
+                        {
+                          "type": "image",
+                          "image_url": "https://github.githubassets.com/images/modules/site/icons/footer/github-mark.svg",
+                          "alt_text": "GitHub"
+                        },
+                        {
+                          "type": "mrkdwn",
+                          "text": "⏰ *Detected:* <!date^${{ steps.alert-details.outputs.timestamp }}^{date_short_pretty} at {time}|$(date)> | 🤖 *Platform:* GitHub Advanced Security | 🏷️ *Version:* v2.0"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "section",
+                      "text": {
+                        "type": "mrkdwn",
+                        "text": "*🎯 Priority Actions:*\n${{ steps.alert-details.outputs.severity == 'critical' && '🚨 *IMMEDIATE ACTION REQUIRED* - Critical vulnerabilities detected!' || steps.alert-details.outputs.severity == 'high' && '⚠️ *HIGH PRIORITY* - Address these vulnerabilities within 24 hours' || steps.alert-details.outputs.severity == 'medium' && '📋 *MEDIUM PRIORITY* - Review and remediate within 48 hours' || '✅ *LOW PRIORITY* - Schedule for next maintenance window' }}"
+                      }
                     },
                     {
                       "type": "context",
                       "elements": [
                         {
                           "type": "mrkdwn",
-                          "text": "⏰ Detected at: ${{ github.event.created_at || github.run_started_at }} | 🤖 Powered by GHAS"
+                          "text": "💡 *Quick Actions:* Use buttons above to investigate | 📚 *Docs:* <https://docs.github.com/en/code-security/code-scanning|CodeQL Guide> | 🆘 *Support:* @tim-warner"
                         }
                       ]
                     }
