@@ -44,7 +44,7 @@
     "swagger-ui-express": "^5.0.0",
     "swagger-jsdoc": "^6.2.8",
     "debug": "2.6.0",
-    "minimist": "1.2.0",
+    "minimist": "1.2.8",
     "marked": "0.3.6",
     "serialize-javascript": "1.4.0",
     "handlebars": "4.0.10",
